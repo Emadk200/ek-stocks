@@ -1,69 +1,133 @@
-// تحميل ملف CSV تلقائيًا من المجلد
-fetch("EKstoks.csv")
-  .then(response => response.text())
-  .then(csvText => {
-    const data = Papa.parse(csvText, { header: true }).data;
-    renderTable(data);
-  });
+// script.js — UPDATED: computes Excel formulas in the browser
+// Requires PapaParse (already used in your site) and index.html to include it.
 
-function renderTable(data) {
-  const tableHead = document.getElementById("table-head");
-  const tableBody = document.getElementById("table-body");
+function computeRowComputedFields(row, headers) {
+  // helper: get numeric value by Excel column letter (A..Z)
+  const getVal = (colLetter) => {
+    const idx = colLetter.charCodeAt(0) - 'A'.charCodeAt(0);
+    const h = headers[idx] || null;
+    const raw = h && row[h] !== undefined && row[h] !== '' ? String(row[h]).replace(/,/g,'').trim() : '';
+    const v = raw === '' ? NaN : parseFloat(raw);
+    return isNaN(v) ? NaN : v;
+  };
 
-  // الأعمدة الأصلية + المحسوبة
-  const headers = Object.keys(data[0]);
-  const extraHeaders = [
-    "Dev_calc",
-    "Dev%_calc",
-    "P/E_calc",
-    "P/BV_calc",
-    "PE*PBV_calc",
-    "LP_GN_calc"
-  ];
-  tableHead.innerHTML =
-    "<tr>" +
-    headers.concat(extraHeaders).map(h => `<th>${h}</th>`).join("") +
-    "</tr>";
+  const out = {};
 
-  data.forEach(row => {
-    const num = val => parseFloat(val) || 0;
+  // -- Generated from Excel formulas --
+  // Column E (Dev.) : =D{r}-C{r}
+  try {
+    var val = getVal('D') - getVal('C');
+    out['Dev.'] = isNaN(val) ? '' : val;
+  } catch(e) { out['Dev.'] = ''; }
 
-    // الحسابات
-    const Dev_calc = num(row["EPS 25/Q3"]) - num(row["EPS 24/Q3"]);
-    const Dev_pct = num(row["EPS 24/Q3"])
-      ? (Dev_calc / num(row["EPS 24/Q3"])) * 100
-      : 0;
+  // Column F (Dev. %) : =E{r}/C{r}
+  try {
+    var val = getVal('E') / getVal('C');
+    out['Dev. %'] = isNaN(val) ? '' : val;
+  } catch(e) { out['Dev. %'] = ''; }
 
-    const PE_calc = num(row["EPS 2025"])
-      ? num(row["Current Price"]) / num(row["EPS 2025"])
-      : 0;
+  // Column J (P/E) : =B{r}/H{r}
+  try {
+    var val = getVal('B') / getVal('H');
+    out['P/E'] = isNaN(val) ? '' : val;
+  } catch(e) { out['P/E'] = ''; }
 
-    const PBV_calc = num(row["P/B.V"])
-      ? num(row["Current Price"]) / num(row["P/B.V"])
-      : 0;
+  // Column M (P/B.V) : =B{r}/L{r}
+  try {
+    var val = getVal('B') / getVal('L');
+    out['P/B.V'] = isNaN(val) ? '' : val;
+  } catch(e) { out['P/B.V'] = ''; }
 
-    const PE_PBV_calc = PE_calc * PBV_calc;
+  // Column O (P/E*P/B.V.) : =J{r}*M{r}
+  try {
+    var val = getVal('J') * getVal('M');
+    out['P/E*P/B.V.'] = isNaN(val) ? '' : val;
+  } catch(e) { out['P/E*P/B.V.'] = ''; }
 
-    const LP_GN_calc = num(row["L.P/G.N"])
-      ? num(row["Current Price"]) / num(row["L.P/G.N"])
-      : 0;
+  // Column Q (L.P/G.N) : =B{r}/P{r}
+  try {
+    var val = getVal('B') / getVal('P');
+    out['L.P/G.N'] = isNaN(val) ? '' : val;
+  } catch(e) { out['L.P/G.N'] = ''; }
 
-    const allData = {
-      ...row,
-      Dev_calc: Dev_calc.toFixed(3),
-      Dev%_calc: Dev_pct.toFixed(2) + "%",
-      "P/E_calc": PE_calc.toFixed(2),
-      "P/BV_calc": PBV_calc.toFixed(2),
-      "PE*PBV_calc": PE_PBV_calc.toFixed(2),
-      "LP_GN_calc": LP_GN_calc.toFixed(2)
-    };
-
-    const rowHTML =
-      "<tr>" +
-      Object.values(allData)
-        .map(v => `<td>${v}</td>`)
-        .join("") +
-      "</tr>";
-    tableBody.innerHTML += rowHTML;
-  });
+  return out;
 }
+
+
+// --- Main: load CSV, compute, render table ---
+fetch("EKstoks.csv")
+  .then(resp => {
+    if (!resp.ok) throw new Error("Failed to load EKstoks.csv: " + resp.status);
+    return resp.text();
+  })
+  .then(csvText => {
+    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    const data = parsed.data;
+    if (!data || data.length === 0) {
+      document.getElementById('table-body').innerHTML = '<tr><td colspan="20">No data found in EKstoks.csv</td></tr>';
+      return;
+    }
+
+    // headers array (ordered) — we need it to map letters A,B,C... to headers
+    const headers = Object.keys(data[0]);
+
+    // compute additional fields for each row
+    const computedNames = []; // collect names in order (use column headers from compute function)
+    const rowsComputed = data.map(row => {
+      const comp = computeRowComputedFields(row, headers);
+      // collect computed keys (only once)
+      for (const k of Object.keys(comp)) {
+        if (!computedNames.includes(k)) computedNames.push(k);
+      }
+      return { original: row, computed: comp };
+    });
+
+    // render table header (original headers + computed headers)
+    const tableHead = document.getElementById("table-head");
+    const tableBody = document.getElementById("table-body");
+    tableHead.innerHTML = "";
+    tableBody.innerHTML = "";
+
+    const allHeaders = headers.concat(computedNames);
+    const trh = document.createElement('tr');
+    allHeaders.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      trh.appendChild(th);
+    });
+    tableHead.appendChild(trh);
+
+    // render rows
+    rowsComputed.forEach(rc => {
+      const tr = document.createElement('tr');
+      // original columns
+      headers.forEach(h => {
+        const td = document.createElement('td');
+        td.textContent = rc.original[h] !== undefined ? rc.original[h] : "";
+        tr.appendChild(td);
+      });
+      // computed columns (format some nicely)
+      computedNames.forEach(h => {
+        const td = document.createElement('td');
+        let v = rc.computed[h];
+        // format percent-like Dev. % if header name includes %
+        if (typeof v === 'number') {
+          if (h.toLowerCase().includes('%')) {
+            // Dev. % in Excel was fraction (e.g. -0.15) — show as percent
+            td.textContent = (v * 100).toFixed(3) + "%";
+          } else {
+            td.textContent = Number(v).toFixed(4);
+          }
+        } else {
+          td.textContent = v;
+        }
+        tr.appendChild(td);
+      });
+      tableBody.appendChild(tr);
+    });
+
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById('table-body').innerHTML = '<tr><td colspan="20">Error loading data — check console.</td></tr>';
+  });

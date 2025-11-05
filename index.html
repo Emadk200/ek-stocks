@@ -1,74 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
-  <title>Watchlist Stocks Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; }
-    h1 { text-align: center; color: #2b3e50; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #2b3e50; color: white; }
-    tr:nth-child(even) { background: #f9f9f9; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EK Stocks Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <!-- مكتبة SheetJS لقراءة Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 </head>
-<body>
-  <h1>📊 Watchlist Stocks Dashboard</h1>
-  <table id="stocks-table">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
+<body class="bg-gray-50 text-gray-800">
+  <div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4 text-center">📊Watchlist Stocks Dashboard</h1>
 
-  <script>
-    Papa.parse("EKstoks.csv", {
-      download: true,
-      header: true,
-      complete: function(results) {
-        const data = results.data.filter(row => row["Code"]);
-        const columns = Object.keys(data[0]);
+    <div class="mb-4 text-center">
+      <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded">
+    </div>
 
-        // 🔹 نضيف الأعمدة المحسوبة
-        const computedCols = ["Dev_calc", "Dev%_calc", "P/E_calc", "P/BV_calc", "PE*PBV_calc", "LP_GN_calc"];
-        const allCols = [...columns, ...computedCols];
+    <div id="tableContainer" class="overflow-x-auto shadow-lg rounded-lg bg-white"></div>
+  </div>
 
-        // إعداد رأس الجدول
-        const thead = document.querySelector("#stocks-table thead");
-        thead.innerHTML = "<tr>" + allCols.map(c => `<th>${c}</th>`).join("") + "</tr>";
-
-        // إعداد البيانات المحسوبة
-        const tbody = document.querySelector("#stocks-table tbody");
-        data.forEach(row => {
-          const eps24 = parseFloat(row["EPS 24/Q3"]) || 0;
-          const eps25 = parseFloat(row["EPS 25/Q3"]) || 0;
-          const price = parseFloat(row["Current Price"]) || 0;
-          const eps2025 = parseFloat(row["EPS 2025"]) || 0;
-          const pbv = parseFloat(row["P/B.V"]) || 0;
-          const lpg = parseFloat(row["L.P/G.N"]) || 0;
-
-          // الحسابات
-          const dev = eps25 - eps24;
-          const devp = eps24 ? dev / eps24 : 0;
-          const pe = eps2025 ? price / eps2025 : 0;
-          const pbv_calc = pbv ? price / pbv : 0;
-          const pe_pbv = pe * pbv_calc;
-          const lpgn = lpg ? price / lpg : 0;
-
-          row["Dev_calc"] = dev.toFixed(3);
-          row["Dev%_calc"] = devp.toFixed(3);
-          row["P/E_calc"] = pe.toFixed(3);
-          row["P/BV_calc"] = pbv_calc.toFixed(3);
-          row["PE*PBV_calc"] = pe_pbv.toFixed(3);
-          row["LP_GN_calc"] = lpgn.toFixed(3);
-
-          // طباعة الصف
-          const rowHTML = allCols.map(c => `<td>${row[c] ?? ""}</td>`).join("");
-          tbody.innerHTML += `<tr>${rowHTML}</tr>`;
-        });
-      }
-    });
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>

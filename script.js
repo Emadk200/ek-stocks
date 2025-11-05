@@ -1,93 +1,44 @@
-// script.js — load and compute data directly from Excel (XLSX)
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
-
-function computeRowComputedFields(row, headers) {
-  const getVal = (colLetter) => {
-    const idx = colLetter.charCodeAt(0) - 'A'.charCodeAt(0);
-    const h = headers[idx] || null;
-    const raw = h && row[h] !== undefined && row[h] !== '' ? String(row[h]).replace(/,/g,'').trim() : '';
-    const v = raw === '' ? NaN : parseFloat(raw);
-    return isNaN(v) ? NaN : v;
-  };
-
-  const out = {};
-  try { out['Dev.'] = getVal('D') - getVal('C'); } catch(e){ out['Dev.']=''; }
-  try { out['Dev. %'] = getVal('E') / getVal('C'); } catch(e){ out['Dev. %']=''; }
-  try { out['P/E'] = getVal('B') / getVal('H'); } catch(e){ out['P/E']=''; }
-  try { out['P/B.V'] = getVal('B') / getVal('L'); } catch(e){ out['P/B.V']=''; }
-  try { out['P/E*P/B.V.'] = getVal('J') * getVal('M'); } catch(e){ out['P/E*P/B.V.']=''; }
-  try { out['L.P/G.N'] = getVal('B') / getVal('P'); } catch(e){ out['L.P/G.N']=''; }
-  return out;
-}
-
+// script.js — read Excel file and display as table
 document.addEventListener('DOMContentLoaded', () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.xlsx';
-  input.style.margin = '20px';
-  document.body.insertBefore(input, document.body.firstChild);
+  const input = document.getElementById('fileInput');
+  const tableContainer = document.getElementById('tableContainer');
 
-  input.addEventListener('change', (e) => {
-    const file = e.target.files[0];
+  input.addEventListener('change', (event) => {
+    const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = new Uint8Array(evt.target.result);
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheet = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheet];
-      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      const data = json;
-      const headers = Object.keys(data[0]);
-      const computedNames = [];
-      const rowsComputed = data.map(row => {
-        const comp = computeRowComputedFields(row, headers);
-        for (const k of Object.keys(comp)) {
-          if (!computedNames.includes(k)) computedNames.push(k);
-        }
-        return { original: row, computed: comp };
-      });
+      // قراءة أول شيت فقط
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
 
-      const tableHead = document.getElementById("table-head");
-      const tableBody = document.getElementById("table-body");
-      tableHead.innerHTML = "";
-      tableBody.innerHTML = "";
+      if (jsonData.length === 0) {
+        tableContainer.innerHTML = "<p class='text-center text-gray-500'>الملف فارغ</p>";
+        return;
+      }
 
-      const allHeaders = headers.concat(computedNames);
-      const trh = document.createElement('tr');
-      allHeaders.forEach(h => {
-        const th = document.createElement('th');
-        th.textContent = h;
-        trh.appendChild(th);
-      });
-      tableHead.appendChild(trh);
+      // إنشاء الجدول
+      const headers = Object.keys(jsonData[0]);
+      let html = `<table class="min-w-full border-collapse border border-gray-300 text-sm">
+                    <thead class="bg-gray-200">
+                      <tr>${headers.map(h => `<th class="border border-gray-300 px-3 py-2">${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                      ${jsonData.map(row => `
+                        <tr>
+                          ${headers.map(h => `<td class="border border-gray-300 px-3 py-1">${row[h]}</td>`).join('')}
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>`;
 
-      rowsComputed.forEach(rc => {
-        const tr = document.createElement('tr');
-        headers.forEach(h => {
-          const td = document.createElement('td');
-          td.textContent = rc.original[h] !== undefined ? rc.original[h] : "";
-          tr.appendChild(td);
-        });
-        computedNames.forEach(h => {
-          const td = document.createElement('td');
-          let v = rc.computed[h];
-          if (typeof v === 'number') {
-            if (h.toLowerCase().includes('%')) {
-              td.textContent = (v * 100).toFixed(3) + "%";
-            } else {
-              td.textContent = Number(v).toFixed(4);
-            }
-          } else {
-            td.textContent = v;
-          }
-          tr.appendChild(td);
-        });
-        tableBody.appendChild(tr);
-      });
+      tableContainer.innerHTML = html;
     };
+
     reader.readAsArrayBuffer(file);
   });
 });

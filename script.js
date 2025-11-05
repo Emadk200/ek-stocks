@@ -1,8 +1,7 @@
-// script.js — UPDATED: computes Excel formulas in the browser
-// Requires PapaParse (already used in your site) and index.html to include it.
+// script.js — load and compute data directly from Excel (XLSX)
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 
 function computeRowComputedFields(row, headers) {
-  // helper: get numeric value by Excel column letter (A..Z)
   const getVal = (colLetter) => {
     const idx = colLetter.charCodeAt(0) - 'A'.charCodeAt(0);
     const h = headers[idx] || null;
@@ -12,122 +11,83 @@ function computeRowComputedFields(row, headers) {
   };
 
   const out = {};
-
-  // -- Generated from Excel formulas --
-  // Column E (Dev.) : =D{r}-C{r}
-  try {
-    var val = getVal('D') - getVal('C');
-    out['Dev.'] = isNaN(val) ? '' : val;
-  } catch(e) { out['Dev.'] = ''; }
-
-  // Column F (Dev. %) : =E{r}/C{r}
-  try {
-    var val = getVal('E') / getVal('C');
-    out['Dev. %'] = isNaN(val) ? '' : val;
-  } catch(e) { out['Dev. %'] = ''; }
-
-  // Column J (P/E) : =B{r}/H{r}
-  try {
-    var val = getVal('B') / getVal('H');
-    out['P/E'] = isNaN(val) ? '' : val;
-  } catch(e) { out['P/E'] = ''; }
-
-  // Column M (P/B.V) : =B{r}/L{r}
-  try {
-    var val = getVal('B') / getVal('L');
-    out['P/B.V'] = isNaN(val) ? '' : val;
-  } catch(e) { out['P/B.V'] = ''; }
-
-  // Column O (P/E*P/B.V.) : =J{r}*M{r}
-  try {
-    var val = getVal('J') * getVal('M');
-    out['P/E*P/B.V.'] = isNaN(val) ? '' : val;
-  } catch(e) { out['P/E*P/B.V.'] = ''; }
-
-  // Column Q (L.P/G.N) : =B{r}/P{r}
-  try {
-    var val = getVal('B') / getVal('P');
-    out['L.P/G.N'] = isNaN(val) ? '' : val;
-  } catch(e) { out['L.P/G.N'] = ''; }
-
+  try { out['Dev.'] = getVal('D') - getVal('C'); } catch(e){ out['Dev.']=''; }
+  try { out['Dev. %'] = getVal('E') / getVal('C'); } catch(e){ out['Dev. %']=''; }
+  try { out['P/E'] = getVal('B') / getVal('H'); } catch(e){ out['P/E']=''; }
+  try { out['P/B.V'] = getVal('B') / getVal('L'); } catch(e){ out['P/B.V']=''; }
+  try { out['P/E*P/B.V.'] = getVal('J') * getVal('M'); } catch(e){ out['P/E*P/B.V.']=''; }
+  try { out['L.P/G.N'] = getVal('B') / getVal('P'); } catch(e){ out['L.P/G.N']=''; }
   return out;
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx';
+  input.style.margin = '20px';
+  document.body.insertBefore(input, document.body.firstChild);
 
-// --- Main: load CSV, compute, render table ---
-fetch("EKstoks.csv")
-  .then(resp => {
-    if (!resp.ok) throw new Error("Failed to load EKstoks.csv: " + resp.status);
-    return resp.text();
-  })
-  .then(csvText => {
-    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-    const data = parsed.data;
-    if (!data || data.length === 0) {
-      document.getElementById('table-body').innerHTML = '<tr><td colspan="20">No data found in EKstoks.csv</td></tr>';
-      return;
-    }
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    // headers array (ordered) — we need it to map letters A,B,C... to headers
-    const headers = Object.keys(data[0]);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheet];
+      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-    // compute additional fields for each row
-    const computedNames = []; // collect names in order (use column headers from compute function)
-    const rowsComputed = data.map(row => {
-      const comp = computeRowComputedFields(row, headers);
-      // collect computed keys (only once)
-      for (const k of Object.keys(comp)) {
-        if (!computedNames.includes(k)) computedNames.push(k);
-      }
-      return { original: row, computed: comp };
-    });
-
-    // render table header (original headers + computed headers)
-    const tableHead = document.getElementById("table-head");
-    const tableBody = document.getElementById("table-body");
-    tableHead.innerHTML = "";
-    tableBody.innerHTML = "";
-
-    const allHeaders = headers.concat(computedNames);
-    const trh = document.createElement('tr');
-    allHeaders.forEach(h => {
-      const th = document.createElement('th');
-      th.textContent = h;
-      trh.appendChild(th);
-    });
-    tableHead.appendChild(trh);
-
-    // render rows
-    rowsComputed.forEach(rc => {
-      const tr = document.createElement('tr');
-      // original columns
-      headers.forEach(h => {
-        const td = document.createElement('td');
-        td.textContent = rc.original[h] !== undefined ? rc.original[h] : "";
-        tr.appendChild(td);
-      });
-      // computed columns (format some nicely)
-      computedNames.forEach(h => {
-        const td = document.createElement('td');
-        let v = rc.computed[h];
-        // format percent-like Dev. % if header name includes %
-        if (typeof v === 'number') {
-          if (h.toLowerCase().includes('%')) {
-            // Dev. % in Excel was fraction (e.g. -0.15) — show as percent
-            td.textContent = (v * 100).toFixed(3) + "%";
-          } else {
-            td.textContent = Number(v).toFixed(4);
-          }
-        } else {
-          td.textContent = v;
+      const data = json;
+      const headers = Object.keys(data[0]);
+      const computedNames = [];
+      const rowsComputed = data.map(row => {
+        const comp = computeRowComputedFields(row, headers);
+        for (const k of Object.keys(comp)) {
+          if (!computedNames.includes(k)) computedNames.push(k);
         }
-        tr.appendChild(td);
+        return { original: row, computed: comp };
       });
-      tableBody.appendChild(tr);
-    });
 
-  })
-  .catch(err => {
-    console.error(err);
-    document.getElementById('table-body').innerHTML = '<tr><td colspan="20">Error loading data — check console.</td></tr>';
+      const tableHead = document.getElementById("table-head");
+      const tableBody = document.getElementById("table-body");
+      tableHead.innerHTML = "";
+      tableBody.innerHTML = "";
+
+      const allHeaders = headers.concat(computedNames);
+      const trh = document.createElement('tr');
+      allHeaders.forEach(h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        trh.appendChild(th);
+      });
+      tableHead.appendChild(trh);
+
+      rowsComputed.forEach(rc => {
+        const tr = document.createElement('tr');
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          td.textContent = rc.original[h] !== undefined ? rc.original[h] : "";
+          tr.appendChild(td);
+        });
+        computedNames.forEach(h => {
+          const td = document.createElement('td');
+          let v = rc.computed[h];
+          if (typeof v === 'number') {
+            if (h.toLowerCase().includes('%')) {
+              td.textContent = (v * 100).toFixed(3) + "%";
+            } else {
+              td.textContent = Number(v).toFixed(4);
+            }
+          } else {
+            td.textContent = v;
+          }
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
+    };
+    reader.readAsArrayBuffer(file);
   });
+});

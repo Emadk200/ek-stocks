@@ -33,14 +33,48 @@
       </div>
 
 <style>
+  /* تلوين الصفوف بالتناوب */
   table tbody tr:nth-child(odd) {
-    background-color: #ffffff; /* أبيض */
+    background-color: #ffffff;
   }
+
   table tbody tr:nth-child(even) {
-    background-color: #f9fafb; /* رمادي فاتح جدًا */
+    background-color: #f2f2f2;
   }
+
+  /* فاصل خفيف بين الصفوف */
+  table tbody tr {
+    border-bottom: 1px solid #d1d5db; /* رمادي فاتح */
+  }
+
+  /* تأثير عند المرور بالماوس */
   table tbody tr:hover {
-    background-color: #eef2ff; /* لون مميز عند المرور بالماوس */
+    background-color: #e0e7ff;
+  }
+
+  /* السطر الأخير (المجاميع / المتوسطات) */
+  table tbody tr:last-child {
+    background-color: #e8f0fe !important; /* أزرق فاتح */
+    font-weight: bold;
+  }
+
+  /* حدود عامة للجدول */
+  table {
+    border: 1px solid #cbd5e0;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #e5e7eb;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  table th {
+    background-color: #f1f5f9;
+    font-weight: 600;
   }
 </style>
 

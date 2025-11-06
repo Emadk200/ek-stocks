@@ -121,7 +121,11 @@ function updateDate() {
     timeStyle: "short"
   });
   document.getElementById("date").textContent = ` Last updated: ${formatted}`;
-  document.getElementById("note").textContent = " Data loaded automatically from GitHub (watchliststoks.xlsx). Click 🔄 to refresh.\r\n Book Value For Q3\r\n Graham Number: above it the stock is over priced\r\n L.P /G.N ==> Last Price / Graham Number\r\n Stock Yeild based on last price and the expected dividends for 2025";
+  document.getElementById("note").textContent = "Data loaded automatically from GitHub (watchliststoks.xlsx). Click 🔄 to refresh.\r\n";
+  document.getElementById("note").textContent += "Book Value For Q3\r\n";
+  document.getElementById("note").textContent += "Graham Number: above it the stock is over priced\r\n";
+  document.getElementById("note").textContent += "L.P /G.N ==> Last Price / Graham Number\r\n";
+  document.getElementById("note").textContent += "Stock Yeild based on last price and the expected dividends for 2025\r\n";
 }
 
 // زر التحديث

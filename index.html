@@ -1,56 +1,37 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EK Stocks Dashboard</title>
-
-  <!-- تنسيق Tailwind -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
-
-  <!-- مكتبة SheetJS لقراءة Excel -->
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <title>📊 EK Stocks Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+  <script defer src="script.js"></script>
 </head>
+<body class="bg-gray-50 text-gray-800 p-6">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold text-center mb-4 text-blue-700">📈 EK Stocks Dashboard</h1>
 
-<body class="bg-gray-50 text-gray-800 font-sans">
-  <div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-4 text-center text-blue-800">📊 EK Stocks Dashboard</h1>
+    <div class="flex flex-col sm:flex-row sm:justify-between items-center gap-4 mb-4">
+      <div>
+        <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded cursor-pointer bg-white shadow-sm" />
+      </div>
 
-    <!-- 🕒 التاريخ والرسالة -->
-    <div id="infoContainer" class="flex flex-col items-start mb-4">
-      <p id="dateTime" class="text-gray-700 text-sm font-semibold mb-1"></p>
-      <div class="flex items-center gap-2">
-        <p id="customMessage" class="text-gray-500 text-xs italic"></p>
-        <input
-          type="text"
-          id="messageInput"
-          placeholder="اكتب ملاحظة..."
-          class="border rounded p-1 text-xs"
-          style="display:none"
-        />
-        <button id="editMessageBtn" class="text-blue-600 text-xs underline">✏️ تعديل الرسالة</button>
+      <div class="text-sm text-gray-700 flex flex-col items-start">
+        <span id="dateTime" class="font-medium text-blue-700"></span>
+        <div class="flex items-center gap-2 mt-1">
+          <span id="customMessage" class="italic text-gray-600"></span>
+          <button id="editMessageBtn" class="text-xs text-blue-600 hover:underline">تعديل</button>
+        </div>
+        <input type="text" id="messageInput" class="hidden border border-blue-300 rounded px-2 py-1 text-sm mt-1 w-full" placeholder="اكتب ملاحظتك هنا..." />
       </div>
     </div>
 
-    <!-- 🗂️ رفع الملف -->
-    <div class="mb-4 text-center">
-      <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded" />
+    <div class="flex justify-between items-center mb-4">
+      <input type="text" id="searchInput" placeholder="🔍 بحث..." class="border rounded px-3 py-2 w-full sm:w-1/3 shadow-sm focus:ring-2 focus:ring-blue-300" />
     </div>
 
-    <!-- 🔍 مربع البحث -->
-    <div class="mb-4 text-center">
-      <input
-        type="text"
-        id="searchInput"
-        placeholder="🔍 ابحث في الجدول..."
-        class="border p-2 rounded w-1/2"
-      />
-    </div>
-
-    <!-- 📈 حاوية الجدول -->
-    <div id="tableContainer" class="overflow-x-auto shadow-lg rounded-lg bg-white p-4"></div>
+    <div id="tableContainer" class="overflow-x-auto"></div>
   </div>
-
-  <script src="script.js"></script>
 </body>
 </html>

@@ -1,143 +1,130 @@
-const excelUrl = "https://raw.githubusercontent.com/Emadk200/ek-stocks/main/watchliststoks.xlsx";
+document.addEventListener("DOMContentLoaded", () => {
+  const githubFileURL =
+    "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx"; // المسار إلى ملف Excel
 
-// تحميل الملف من GitHub
-async function loadExcel() {
-  const container = document.getElementById("tableContainer");
-  container.innerHTML = "<p class='text-gray-600'>⏳ Loading data...</p>";
+  const dateElem = document.getElementById("datetime");
+  const table = document.getElementById("stockTable");
 
-  try {
-    const response = await fetch(excelUrl);
-    if (!response.ok) throw new Error("File not found");
-
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheet = workbook.SheetNames[0];
-    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { defval: "" });
-    renderTable(data);
-    updateDate();
-  } catch (err) {
-    container.innerHTML = `<p class='text-red-500 font-semibold'>⚠️ Error loading Excel file: ${err.message}</p>`;
-  }
-}
-
-// تنسيق الخلايا
-function formatCell(value, header, isLastRow = false) {
-  if (typeof value === "number") {
-    const isPercent = /%|Dev|Change|growth/i.test(header);
-    let display = value.toFixed(2);
-    if (isPercent) display += "%";
-    const color = isLastRow ? "text-white" : (value < 0 ? "text-red-600" : "text-gray-800");
-    return `<td class="px-3 py-1 ${color}">${display}</td>`;
-  }
-  return `<td class="px-3 py-1 ${isLastRow ? 'text-white' : ''}">${value}</td>`;
-}
-
-// عرض الجدول
-function renderTable(data) {
-  const container = document.getElementById("tableContainer");
-  if (!data || data.length === 0) {
-    container.innerHTML = "<p>No data found in Excel file.</p>";
-    return;
-  }
-
-  const headers = Object.keys(data[0]);
-  const lastRowIndex = data.length - 1;
-
-  // حفظ التخطيط الأساسي (zebra) بشكل دائم حسب الفهرس الأصلي
-  const rowColors = data.map((_, i) =>
-    i === lastRowIndex ? "bg-gray-800 text-white font-semibold" :
-    i % 2 === 0 ? "bg-white" : "bg-gray-300"
-  );
-
-  let tableHTML = `
-    <table id="dataTable" class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
-      <thead class="bg-gray-700 text-white select-none">
-        <tr>${headers.map(h => `<th class="px-3 py-2 text-left cursor-pointer">${h}</th>`).join("")}</tr>
-      </thead>
-      <tbody>
-        ${data.map((row, i) => `
-          <tr class="${rowColors[i]}">
-            ${headers.map(h => formatCell(row[h], h, i === lastRowIndex)).join("")}
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-
-  container.innerHTML = tableHTML;
-  addSorting(rowColors);
-  addSearch();
-}
-
-// البحث
-function addSearch() {
-  const searchInput = document.getElementById("searchInput");
-  const rows = document.querySelectorAll("#dataTable tbody tr");
-  searchInput.addEventListener("input", () => {
-    const term = searchInput.value.toLowerCase();
-    rows.forEach(row => {
-      row.style.display = row.textContent.toLowerCase().includes(term) ? "" : "none";
-    });
-  });
-}
-
-// الفرز مع الحفاظ على zebra striping الأصلي
-function addSorting(rowColors) {
-  const table = document.getElementById("dataTable");
-  const headers = table.querySelectorAll("th");
-  headers.forEach((th, i) => {
-    th.addEventListener("click", () => sortTable(table, i, rowColors));
-  });
-}
-
-function sortTable(table, columnIndex, rowColors) {
-  const tbody = table.querySelector("tbody");
-  const rows = Array.from(tbody.rows);
-  const lastRow = rows.pop(); // استبعاد السطر الأخير (المجاميع)
-
-  const sorted = rows.sort((a, b) => {
-    const A = a.cells[columnIndex].innerText.replace("%", "");
-    const B = b.cells[columnIndex].innerText.replace("%", "");
-    const numA = parseFloat(A);
-    const numB = parseFloat(B);
-    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-    return A.localeCompare(B);
-  });
-
-  // إعادة ترتيب الصفوف دون تغيير ألوانها الأصلية
-  sorted.forEach((r, idx) => {
-    r.className = rowColors[idx];
-    tbody.appendChild(r);
-  });
-  lastRow.className = rowColors[rowColors.length - 1];
-  tbody.appendChild(lastRow);
-}
-
-// التاريخ والملاحظة
-function updateDate() {
+  // عرض التاريخ الميلادي الحالي
   const now = new Date();
-  const formatted = now.toLocaleString("en-US", {
+  const formattedDate = now.toLocaleString("en-GB", {
     dateStyle: "full",
-    timeStyle: "short"
+    timeStyle: "short",
   });
-    document.getElementById("date").textContent = `Last updated: ${formatted}`;
-    let value = "Data loaded automatically from Excel Sheet. Click 🔄 to refresh.\n Book Value For Q3 \n Graham Number: above it the stock is over     priced \n L.P /G.N ==> Last Price / Graham Number \n Stock Yeild based on last price and the expected dividends for 2025 \n";
-    document.getElementById("note").textContent = value
+  dateElem.textContent = `Last updated: ${formattedDate}`;
 
-//  document.getElementById("note").textContent = "Data loaded automatically from Excel Sheet. Click 🔄 to refresh.\r\n";
-//  document.getElementById("note").textContent += "Book Value For Q3\r\n";
-//  document.getElementById("note").textContent += "Graham Number: above it the stock is over priced\r\n";
-//  document.getElementById("note").textContent += "L.P /G.N ==> Last Price / Graham Number\r\n";
-//  document.getElementById("note").textContent += "Stock Yeild based on last price and the expected dividends for 2025\r\n";
+  // تحميل ملف Excel من GitHub
+  fetch(githubFileURL)
+    .then((res) => res.arrayBuffer())
+    .then((data) => {
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
-#note {
-  white-space: pre; /* or pre-wrap */
-}
+      if (sheet.length === 0) return;
 
-}
+      const columns = Object.keys(sheet[0]);
 
-// زر التحديث
-document.getElementById("reloadBtn").addEventListener("click", loadExcel);
+      // إنشاء رأس الجدول
+      const thead = table.querySelector("thead");
+      const headerRow = document.createElement("tr");
+      columns.forEach((col) => {
+        const th = document.createElement("th");
+        th.textContent = col;
+        th.className =
+          "px-3 py-2 text-left font-semibold cursor-pointer select-none";
+        th.addEventListener("click", () => sortTable(col));
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
 
-// تحميل أولي
-loadExcel();
+      // إنشاء الصفوف
+      const tbody = table.querySelector("tbody");
+      sheet.forEach((rowData, rowIndex) => {
+        const row = document.createElement("tr");
+
+        // تلوين الصفوف بالتناوب
+        if (rowIndex === sheet.length - 1) {
+          row.className = "bg-gray-800 text-white font-semibold"; // السطر الأخير (مجاميع)
+        } else {
+          row.className = rowIndex % 2 === 0 ? "bg-white" : "bg-gray-300";
+        }
+
+        columns.forEach((col) => {
+          const td = document.createElement("td");
+          let value = rowData[col];
+
+          // تنسيق الأرقام
+          if (typeof value === "number") {
+            if (col.includes("%")) {
+              value = `${value.toFixed(2)}%`;
+            } else {
+              value = value.toFixed(2);
+            }
+          }
+
+          // تلوين القيم السالبة بالأحمر
+          if (parseFloat(rowData[col]) < 0) {
+            td.classList.add("text-red-600");
+          }
+
+          td.classList.add("px-3", "py-2", "text-sm", "border-t", "border-gray-200");
+          td.textContent = value;
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+
+      // وظيفة الفرز
+      function sortTable(column) {
+        const colIndex = columns.indexOf(column);
+        const isNumeric = sheet.every((row) => !isNaN(parseFloat(row[column])));
+
+        // فصل السطر الأخير (المجاميع)
+        const lastRow = sheet.pop();
+
+        sheet.sort((a, b) => {
+          const valA = a[column];
+          const valB = b[column];
+          if (isNumeric) return valA - valB;
+          return valA.toString().localeCompare(valB.toString());
+        });
+
+        // إعادة السطر الأخير
+        sheet.push(lastRow);
+
+        // إعادة رسم الجدول بعد الفرز
+        tbody.innerHTML = "";
+        sheet.forEach((rowData, rowIndex) => {
+          const row = document.createElement("tr");
+          if (rowIndex === sheet.length - 1) {
+            row.className = "bg-gray-800 text-white font-semibold";
+          } else {
+            row.className = rowIndex % 2 === 0 ? "bg-white" : "bg-gray-300";
+          }
+          columns.forEach((col) => {
+            const td = document.createElement("td");
+            let value = rowData[col];
+            if (typeof value === "number") {
+              if (col.includes("%")) {
+                value = `${value.toFixed(2)}%`;
+              } else {
+                value = value.toFixed(2);
+              }
+            }
+            if (parseFloat(rowData[col]) < 0) {
+              td.classList.add("text-red-600");
+            }
+            td.classList.add("px-3", "py-2", "text-sm", "border-t", "border-gray-200");
+            td.textContent = value;
+            row.appendChild(td);
+          });
+          tbody.appendChild(row);
+        });
+      }
+    })
+    .catch((err) => {
+      console.error("Error reading Excel file:", err);
+      alert("حدث خطأ أثناء قراءة الملف. يرجى التأكد من المسار.");
+    });
+});

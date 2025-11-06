@@ -3,46 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Watchlist Stocks Dashboard</title>
-
-  <!-- TailwindCSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- XLSX library -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- Custom Script -->
-  <script defer src="script.js"></script>
+  <title>EK Stocks Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 text-gray-900 font-sans p-6">
+<body class="bg-gray-50 text-gray-900 font-sans p-6">
 
-  <!-- Header -->
-  <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-800 mb-1">📊 Watchlist Stocks Dashboard</h1>
-      <p id="date" class="text-sm text-gray-600"></p>
-      <p id="note" class="text-sm text-gray-600 italic"></p>
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4 text-center">📊 EK Stocks Dashboard</h1>
+
+    <!-- التاريخ والوقت -->
+    <div id="datetime" class="text-sm text-gray-600 mb-2 text-left"></div>
+
+    <!-- مربع الملاحظات -->
+    <div id="note" class="bg-gray-100 p-3 rounded-md text-sm text-gray-800 mb-6 leading-relaxed">
+      <p>• يرجى تحديث الملف أسبوعيًا أو بعد التغييرات الجوهرية.</p>
+      <p>• الأسعار المحدثة تعتمد على آخر بيانات السوق المتوفرة.</p>
+      <p>• الأرقام مقربة لعدد عشريين والنسب المئوية مميزة بالعلامة %.</p>
     </div>
 
-    <!-- Reload Button -->
-    <button id="reloadBtn"
-      class="mt-4 sm:mt-0 px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition">
-      🔄 Reload Data
-    </button>
-  </header>
-
-  <!-- Search -->
-  <div class="mb-4">
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="🔍 Search..."
-      class="w-full sm:w-1/3 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring focus:ring-blue-200"
-    />
+    <!-- جدول الأسهم -->
+    <div class="overflow-x-auto">
+      <table id="stockTable" class="min-w-full border border-gray-300 rounded-lg shadow-sm">
+        <thead class="bg-gray-800 text-white"></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Table -->
-  <div id="tableContainer" class="overflow-x-auto rounded-lg shadow-md bg-white p-4"></div>
+  <!-- مكتبة Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+  <!-- ملف الجافاسكريبت -->
+  <script src="script.js"></script>
 </body>
 </html>

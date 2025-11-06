@@ -1,6 +1,6 @@
 const excelUrl = "https://raw.githubusercontent.com/Emadk200/ek-stocks/main/watchliststoks.xlsx";
 
-// تحميل الملف
+// تحميل الملف من GitHub
 async function loadExcel() {
   const container = document.getElementById("tableContainer");
   container.innerHTML = "<p class='text-gray-600'>⏳ Loading data...</p>";
@@ -21,15 +21,15 @@ async function loadExcel() {
 }
 
 // تنسيق الخلايا
-function formatCell(value, header) {
+function formatCell(value, header, isLastRow = false) {
   if (typeof value === "number") {
     const isPercent = /%|Dev|Change|growth/i.test(header);
     let display = value.toFixed(2);
     if (isPercent) display += "%";
-    const color = value < 0 ? "text-red-600" : "text-gray-800";
+    const color = isLastRow ? "text-white" : (value < 0 ? "text-red-600" : "text-gray-800");
     return `<td class="px-3 py-1 ${color}">${display}</td>`;
   }
-  return `<td class="px-3 py-1">${value}</td>`;
+  return `<td class="px-3 py-1 ${isLastRow ? 'text-white' : ''}">${value}</td>`;
 }
 
 // عرض الجدول
@@ -43,15 +43,21 @@ function renderTable(data) {
   const headers = Object.keys(data[0]);
   const lastRowIndex = data.length - 1;
 
+  // حفظ التخطيط الأساسي (zebra) بشكل دائم حسب الفهرس الأصلي
+  const rowColors = data.map((_, i) =>
+    i === lastRowIndex ? "bg-gray-800 text-white font-semibold" :
+    i % 2 === 0 ? "bg-white" : "bg-gray-300"
+  );
+
   let tableHTML = `
     <table id="dataTable" class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
-      <thead class="bg-gray-700 text-white">
-        <tr>${headers.map(h => `<th class="px-3 py-2 text-left cursor-pointer select-none">${h}</th>`).join("")}</tr>
+      <thead class="bg-gray-700 text-white select-none">
+        <tr>${headers.map(h => `<th class="px-3 py-2 text-left cursor-pointer">${h}</th>`).join("")}</tr>
       </thead>
       <tbody>
         ${data.map((row, i) => `
-          <tr class="${i === lastRowIndex ? "bg-gray-800 text-white font-semibold" : (i % 2 === 0 ? "bg-white" : "bg-gray-300")}">
-            ${headers.map(h => formatCell(row[h], h)).join("")}
+          <tr class="${rowColors[i]}">
+            ${headers.map(h => formatCell(row[h], h, i === lastRowIndex)).join("")}
           </tr>
         `).join("")}
       </tbody>
@@ -59,7 +65,7 @@ function renderTable(data) {
   `;
 
   container.innerHTML = tableHTML;
-  addSorting();
+  addSorting(rowColors);
   addSearch();
 }
 
@@ -75,16 +81,16 @@ function addSearch() {
   });
 }
 
-// الفرز
-function addSorting() {
+// الفرز مع الحفاظ على zebra striping الأصلي
+function addSorting(rowColors) {
   const table = document.getElementById("dataTable");
   const headers = table.querySelectorAll("th");
   headers.forEach((th, i) => {
-    th.addEventListener("click", () => sortTable(table, i));
+    th.addEventListener("click", () => sortTable(table, i, rowColors));
   });
 }
 
-function sortTable(table, columnIndex) {
+function sortTable(table, columnIndex, rowColors) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.rows);
   const lastRow = rows.pop(); // استبعاد السطر الأخير (المجاميع)
@@ -98,7 +104,12 @@ function sortTable(table, columnIndex) {
     return A.localeCompare(B);
   });
 
-  sorted.forEach(r => tbody.appendChild(r));
+  // إعادة ترتيب الصفوف دون تغيير ألوانها الأصلية
+  sorted.forEach((r, idx) => {
+    r.className = rowColors[idx];
+    tbody.appendChild(r);
+  });
+  lastRow.className = rowColors[rowColors.length - 1];
   tbody.appendChild(lastRow);
 }
 

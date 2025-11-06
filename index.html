@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EK Stocks Dashboard</title>
 
   <!-- تنسيق Tailwind -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 
   <!-- مكتبة SheetJS لقراءة Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -17,16 +17,34 @@
     <h1 class="text-3xl font-bold mb-4 text-center text-blue-800">📊 EK Stocks Dashboard</h1>
 
     <!-- 🕒 التاريخ والرسالة -->
-    <div id="infoContainer" class="flex justify-between items-start mb-4">
-      <div class="text-left">
-        <p id="dateTime" class="text-gray-700 text-sm font-semibold"></p>
+    <div id="infoContainer" class="flex flex-col items-start mb-4">
+      <p id="dateTime" class="text-gray-700 text-sm font-semibold mb-1"></p>
+      <div class="flex items-center gap-2">
         <p id="customMessage" class="text-gray-500 text-xs italic"></p>
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="اكتب ملاحظة..."
+          class="border rounded p-1 text-xs"
+          style="display:none"
+        />
+        <button id="editMessageBtn" class="text-blue-600 text-xs underline">✏️ تعديل الرسالة</button>
       </div>
     </div>
 
     <!-- 🗂️ رفع الملف -->
     <div class="mb-4 text-center">
-      <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded">
+      <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded" />
+    </div>
+
+    <!-- 🔍 مربع البحث -->
+    <div class="mb-4 text-center">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="🔍 ابحث في الجدول..."
+        class="border p-2 rounded w-1/2"
+      />
     </div>
 
     <!-- 📈 حاوية الجدول -->

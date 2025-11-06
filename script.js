@@ -1,138 +1,120 @@
-document.getElementById('fileInput').addEventListener('change', handleFile, false);
+const excelUrl = "https://raw.githubusercontent.com/Emadk200/ek-stocks/main/watchliststoks.xlsx";
 
-function handleFile(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+// تحميل الملف
+async function loadExcel() {
+  const container = document.getElementById("tableContainer");
+  container.innerHTML = "<p class='text-gray-600'>⏳ Loading data...</p>";
 
-  const reader = new FileReader();
-  reader.onload = function (event) {
-    try {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      renderTable(json);
-    } catch (err) {
-      console.error('حدث خطأ أثناء قراءة الملف:', err);
-      alert('حدث خطأ أثناء قراءة الملف. يرجى التحقق من الصيغة.');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
+  try {
+    const response = await fetch(excelUrl);
+    if (!response.ok) throw new Error("File not found");
 
-function renderTable(data) {
-  const tableContainer = document.getElementById('tableContainer');
-  tableContainer.innerHTML = '';
-
-  const table = document.createElement('table');
-  table.className = 'min-w-full border border-gray-400 divide-y divide-gray-400 text-sm text-left';
-
-  // Header
-  const thead = document.createElement('thead');
-  thead.className = 'bg-gray-700 text-white';
-  const headerRow = document.createElement('tr');
-
-  data[0].forEach(headerText => {
-    const th = document.createElement('th');
-    th.textContent = headerText;
-    th.className = 'px-3 py-2 cursor-pointer select-none';
-    th.addEventListener('click', () => sortTable(th.cellIndex));
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  // Body
-  const tbody = document.createElement('tbody');
-  const rows = data.slice(1);
-
-  rows.forEach((rowData, rowIndex) => {
-    const row = document.createElement('tr');
-
-    // zebra striping
-    row.className = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-300';
-
-    rowData.forEach((cellData, cellIndex) => {
-      const td = document.createElement('td');
-      td.className = 'px-3 py-1 border border-gray-400 text-sm';
-
-      if (typeof cellData === 'number') {
-        const isPercentage = data[0][cellIndex]?.toString().includes('%');
-        let value = cellData.toFixed(2);
-        if (isPercentage) value += '%';
-        td.textContent = value;
-        if (cellData < 0) td.classList.add('text-red-600');
-      } else {
-        td.textContent = cellData ?? '';
-      }
-      row.appendChild(td);
-    });
-    tbody.appendChild(row);
-  });
-
-  table.appendChild(tbody);
-  tableContainer.appendChild(table);
-
-  // تحديد آخر صف (مجاميع/متوسطات) وتغيير لونه
-  const lastRow = tbody.lastElementChild;
-  if (lastRow) {
-    lastRow.className = 'bg-gray-800 text-white font-semibold';
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheet = workbook.SheetNames[0];
+    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { defval: "" });
+    renderTable(data);
+    updateDate();
+  } catch (err) {
+    container.innerHTML = `<p class='text-red-500 font-semibold'>⚠️ Error loading Excel file: ${err.message}</p>`;
   }
 }
 
+// تنسيق الخلايا
+function formatCell(value, header) {
+  if (typeof value === "number") {
+    const isPercent = /%|Dev|Change|growth/i.test(header);
+    let display = value.toFixed(2);
+    if (isPercent) display += "%";
+    const color = value < 0 ? "text-red-600" : "text-gray-800";
+    return `<td class="px-3 py-1 ${color}">${display}</td>`;
+  }
+  return `<td class="px-3 py-1">${value}</td>`;
+}
+
+// عرض الجدول
+function renderTable(data) {
+  const container = document.getElementById("tableContainer");
+  if (!data || data.length === 0) {
+    container.innerHTML = "<p>No data found in Excel file.</p>";
+    return;
+  }
+
+  const headers = Object.keys(data[0]);
+  const lastRowIndex = data.length - 1;
+
+  let tableHTML = `
+    <table id="dataTable" class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
+      <thead class="bg-gray-700 text-white">
+        <tr>${headers.map(h => `<th class="px-3 py-2 text-left cursor-pointer select-none">${h}</th>`).join("")}</tr>
+      </thead>
+      <tbody>
+        ${data.map((row, i) => `
+          <tr class="${i === lastRowIndex ? "bg-gray-800 text-white font-semibold" : (i % 2 === 0 ? "bg-white" : "bg-gray-300")}">
+            ${headers.map(h => formatCell(row[h], h)).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = tableHTML;
+  addSorting();
+  addSearch();
+}
+
 // البحث
-document.getElementById('searchInput').addEventListener('input', function () {
-  const filter = this.value.toLowerCase();
-  const rows = document.querySelectorAll('tbody tr');
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(filter) ? '' : 'none';
+function addSearch() {
+  const searchInput = document.getElementById("searchInput");
+  const rows = document.querySelectorAll("#dataTable tbody tr");
+  searchInput.addEventListener("input", () => {
+    const term = searchInput.value.toLowerCase();
+    rows.forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(term) ? "" : "none";
+    });
   });
-});
+}
 
 // الفرز
-function sortTable(columnIndex) {
-  const tbody = document.querySelector('tbody');
-  const rows = Array.from(tbody.querySelectorAll('tr'));
+function addSorting() {
+  const table = document.getElementById("dataTable");
+  const headers = table.querySelectorAll("th");
+  headers.forEach((th, i) => {
+    th.addEventListener("click", () => sortTable(table, i));
+  });
+}
 
-  // استبعاد آخر صف من الفرز (المجاميع)
-  const lastRow = rows.pop();
+function sortTable(table, columnIndex) {
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.rows);
+  const lastRow = rows.pop(); // استبعاد السطر الأخير (المجاميع)
 
-  const sortedRows = rows.sort((a, b) => {
-    const aText = a.children[columnIndex].innerText.replace('%', '');
-    const bText = b.children[columnIndex].innerText.replace('%', '');
-    const aNum = parseFloat(aText);
-    const bNum = parseFloat(bText);
-    if (!isNaN(aNum) && !isNaN(bNum)) {
-      return aNum - bNum;
-    } else {
-      return aText.localeCompare(bText);
-    }
+  const sorted = rows.sort((a, b) => {
+    const A = a.cells[columnIndex].innerText.replace("%", "");
+    const B = b.cells[columnIndex].innerText.replace("%", "");
+    const numA = parseFloat(A);
+    const numB = parseFloat(B);
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+    return A.localeCompare(B);
   });
 
-  tbody.innerHTML = '';
-  sortedRows.forEach(row => tbody.appendChild(row));
+  sorted.forEach(r => tbody.appendChild(r));
   tbody.appendChild(lastRow);
 }
 
-// عرض التاريخ الميلادي والرسالة
-function updateDateAndMessage() {
-  const dateElement = document.getElementById('date');
-  const noteElement = document.getElementById('note');
+// التاريخ والملاحظة
+function updateDate() {
   const now = new Date();
-
-  const dateStr = now.toLocaleString('en-GB', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  const formatted = now.toLocaleString("en-US", {
+    dateStyle: "full",
+    timeStyle: "short"
   });
-
-  dateElement.textContent = `Last update: ${dateStr}`;
-  noteElement.textContent = 'Data automatically calculated based on uploaded Excel sheet.';
+  document.getElementById("date").textContent = `Last updated: ${formatted}`;
+  document.getElementById("note").textContent = "Data loaded automatically from GitHub (watchliststoks.xlsx). Click 🔄 to refresh.";
 }
 
-updateDateAndMessage();
+// زر التحديث
+document.getElementById("reloadBtn").addEventListener("click", loadExcel);
+
+// تحميل أولي
+loadExcel();

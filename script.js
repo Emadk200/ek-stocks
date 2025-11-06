@@ -120,8 +120,8 @@ function updateDate() {
     dateStyle: "full",
     timeStyle: "short"
   });
-  document.getElementById("date").textContent = `Last updated: ${formatted}`;
-  document.getElementById("note").textContent = "Data loaded automatically from GitHub (watchliststoks.xlsx). Click 🔄 to refresh.\r\nBook Value For Q3\nGraham Number: above it the stock is over priced\r\nL.P /G.N ==> Last Price / Graham Number\r\nStock Yeild based on last price and the expected dividends for 2025";
+  document.getElementById("date").textContent = ` Last updated: ${formatted}`;
+  document.getElementById("note").textContent = " Data loaded automatically from GitHub (watchliststoks.xlsx). Click 🔄 to refresh.\r\n Book Value For Q3\r\n Graham Number: above it the stock is over priced\r\n L.P /G.N ==> Last Price / Graham Number\r\n Stock Yeild based on last price and the expected dividends for 2025";
 }
 
 // زر التحديث

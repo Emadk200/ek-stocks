@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let headers = [];
   let sortState = {};
 
-  // ✅ عرض التاريخ بالميلادي (توقيت الرياض)
+  // ✅ التاريخ الميلادي (توقيت الرياض)
   function updateDateTime() {
     const now = new Date();
     const options = {
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateDateTime();
   setInterval(updateDateTime, 60000);
 
-  // ✅ رسالة قابلة للتعديل
+  // ✅ الرسالة القابلة للتعديل
   customMessage.textContent = "📅 آخر تحديث للأسعار محسوب من ملف التحليل المرفوع.";
   editMessageBtn.addEventListener("click", () => {
     messageInput.value = customMessage.textContent;
@@ -51,22 +51,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      if (jsonData.length > 1) {
-        summaryRow = jsonData[jsonData.length - 1];
-        currentData = jsonData.slice(0, -1);
-      } else {
-        currentData = jsonData;
-        summaryRow = null;
+        if (jsonData.length > 1) {
+          summaryRow = jsonData[jsonData.length - 1];
+          currentData = jsonData.slice(0, -1);
+        } else {
+          currentData = jsonData;
+          summaryRow = null;
+        }
+
+        headers = Object.keys(jsonData[0]);
+        renderTable(currentData);
+      } catch (err) {
+        tableContainer.innerHTML = `<p class='text-red-500 text-center'>حدث خطأ أثناء قراءة الملف: ${err.message}</p>`;
       }
-
-      headers = Object.keys(jsonData[0]);
-      renderTable(currentData);
     };
     reader.readAsArrayBuffer(file);
   });
@@ -82,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderTable(filtered);
   });
 
-  // ✅ رسم الجدول مع السهم (▲▼)
+  // ✅ رسم الجدول
   function renderTable(data) {
     if (!data.length) {
       tableContainer.innerHTML =
@@ -106,6 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const span = document.createElement("span");
       span.textContent = key;
+
       const arrow = document.createElement("span");
       arrow.className = "ml-1 text-gray-500";
       if (sortState[key] === "asc") arrow.textContent = "▲";
@@ -114,7 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       th.appendChild(span);
       th.appendChild(arrow);
-
       th.addEventListener("click", () => sortByColumn(key));
       headerRow.appendChild(th);
     });
@@ -126,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     data.forEach((row) => {
       const tr = document.createElement("tr");
       tr.className = "hover:bg-gray-50";
+
       headers.forEach((key) => {
         const td = document.createElement("td");
         td.className = "px-4 py-2";
@@ -142,10 +147,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tr.appendChild(td);
       });
+
       tbody.appendChild(tr);
     });
 
-    // 🔹 صف المجاميع
+    // 🔹 صف المجاميع/المتوسط
     if (summaryRow) {
       const summaryTr = document.createElement("tr");
       summaryTr.className = "bg-gray-100 font-semibold";
@@ -173,10 +179,11 @@ document.addEventListener("DOMContentLoaded", () => {
     tableContainer.appendChild(table);
   }
 
-  // ✅ وظيفة الفرز مع الأسهم واستثناء الصف الأخير
+  // ✅ الفرز مع الأسهم
   function sortByColumn(column) {
     const direction = sortState[column] === "asc" ? "desc" : "asc";
-    sortState = { [column]: direction }; // إعادة تعيين حالة الأسهم
+    sortState = { [column]: direction };
+
     const sorted = [...currentData].sort((a, b) => {
       const aVal = a[column];
       const bVal = b[column];
@@ -185,6 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!isNaN(aNum) && !isNaN(bNum))
         return direction === "asc" ? aNum - bNum : bNum - aNum;
+
       return direction === "asc"
         ? String(aVal).localeCompare(String(bVal))
         : String(bVal).localeCompare(String(aVal));

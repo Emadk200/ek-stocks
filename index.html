@@ -8,20 +8,29 @@
   <!-- تنسيق Tailwind -->
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
-  <!-- مكتبة SheetJS الرسمية لقراءة Excel -->
+  <!-- مكتبة SheetJS لقراءة Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-800 font-sans">
   <div class="container mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-4 text-center">📊 EK Stocks Dashboard</h1>
+    <h1 class="text-3xl font-bold mb-4 text-center text-blue-800">📊 EK Stocks Dashboard</h1>
 
+    <!-- 🕒 التاريخ والرسالة -->
+    <div id="infoContainer" class="flex justify-between items-start mb-4">
+      <div class="text-left">
+        <p id="dateTime" class="text-gray-700 text-sm font-semibold"></p>
+        <p id="customMessage" class="text-gray-500 text-xs italic"></p>
+      </div>
+    </div>
+
+    <!-- 🗂️ رفع الملف -->
     <div class="mb-4 text-center">
       <input type="file" id="fileInput" accept=".xlsx, .xls" class="border p-2 rounded">
     </div>
-      <div id="searchContainer" class="text-right"></div>
-      <div id="tableContainer" class="overflow-x-auto"></div>
- <!--- الكود الاصلي  <div id="tableContainer" class="overflow-x-auto shadow-lg rounded-lg bg-white p-4"></div> --->
+
+    <!-- 📈 حاوية الجدول -->
+    <div id="tableContainer" class="overflow-x-auto shadow-lg rounded-lg bg-white p-4"></div>
   </div>
 
   <script src="script.js"></script>

@@ -132,12 +132,30 @@ function renderTable(data) {
         else td.classList.add("text-gray-800");
       }
 
-      // سهم الاتجاه بجانب Last Price
-      if (col === "Last Price" && !isNaN(rawChange)) {
-        if (rawChange > 0) value = value + " ↑";
-        else if (rawChange < 0) value = value + " ↓";
-        else value = value + " -";
-      }
+	// سهم الاتجاه بجانب Last Price
+	if (col === "Last Price" && !isNaN(rawChange)) {
+
+	  let arrow = "";
+	  let arrowClass = "";
+
+	  if (rawChange > 0) {
+	    arrow = "↑";
+	    arrowClass = "text-green-600 font-semibold";
+	  } else if (rawChange < 0) {
+	    arrow = "↓";
+	    arrowClass = "text-red-600 font-semibold";
+	  } else {
+	    arrow = "-";
+	    arrowClass = "text-gray-600";
+	  }
+
+	  td.innerHTML = `
+	    <span>${value}</span>
+	    <span class="${arrowClass} ml-1">${arrow}</span>
+	  `;
+	  tr.appendChild(td);
+	  return; // ← مهم جداً حتى لا نعيد وضع value داخل td لاحقاً
+	}
 
       td.textContent = value;
       tr.appendChild(td);
@@ -168,12 +186,17 @@ function sortTableByColumn(colIndex) {
   tbody.dataset.sortOrder = ascending ? "asc" : "desc";
 
   rows.sort((a, b) => {
-    const aVal = a.children[colIndex].textContent.replace("%", "").replace("↑","").replace("↓","").replace("-","").trim();
-    const bVal = b.children[colIndex].textContent.replace("%", "").replace("↑","").replace("↓","").replace("-","").trim();
+    const aVal = a.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
+    const bVal = b.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
+
     const aNum = parseFloat(aVal);
     const bNum = parseFloat(bVal);
-    if (!isNaN(aNum) && !isNaN(bNum)) return ascending ? aNum - bNum : bNum - aNum;
-    return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return ascending ? aNum - bNum : bNum - aNum;
+    } else {
+      return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
   });
 
   rows.forEach((row, i) => {

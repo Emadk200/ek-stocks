@@ -1,4 +1,4 @@
-const fileUrl = "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx";
+const fileUrl = "https://raw.githubusercontent.com/Emadk200/ek-stocks/main/watchliststoks.xlsx";
 
 // تحميل البيانات من GitHub
 async function loadExcelData() {

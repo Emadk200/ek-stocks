@@ -141,10 +141,10 @@ function renderTable(data) {
 	  }
 	}
 
-        // العمود يحتوي نسبة مئوية → أضف %
-        if (col.includes("%") || col.toLowerCase().includes("pct")) {
-          value = value + "%";
-        }
+        // العمود يحتوي نسبة مئوية → أضف % + نسبة مئوية → اضرب في 100 قبل الإضافة
+	if (col.includes("%") || col.toLowerCase().includes("pct")) {
+	  value = (parseFloat(value) * 100).toFixed(2) + "%";
+	}
       }
 
       td.textContent = value;

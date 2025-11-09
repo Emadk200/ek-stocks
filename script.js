@@ -36,15 +36,12 @@ async function fetchLastClosingPrices() {
         if (symbol && !isNaN(lastClosing)) prices[symbol] = lastClosing;
       }
     });
-
+	window._lastPricesTest = prices;
     return prices;
 
   } catch (error) {
     console.error("Error fetching prices:", error);
 	return {};
-finally {
-  window._lastPricesTest = prices; // ✅ أضف هذا
-  }
 }
 
 // تحميل البيانات وعرضها

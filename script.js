@@ -11,14 +11,14 @@ document.getElementById("current-date").textContent =
     minute: "2-digit",
   });
 
-// ملاحظة متعددة الأسطر (اكتب ملاحظتك هنا)
+// الملاحظة (تستطيع تعديل النص داخل هذا الحقل)
 document.getElementById("notes").innerHTML = `
 - This dashboard updates live prices from ASE website.
-- Last closing price is automatically fetched.
-- Data refresh happens when clicking "Update Data".
+- Last Price is fetched automatically when pressing update.
+- Other values are taken from your Excel sheet.
 `;
 
-// جلب أسعار الإغلاق الأخيرة من موقع البورصة
+// جلب الأسعار من موقع البورصة
 async function fetchLastClosingPrices() {
   try {
     const res = await fetch("https://www.ase.com.jo/en/bulletins/daily/new");
@@ -32,8 +32,8 @@ async function fetchLastClosingPrices() {
     rows.forEach(row => {
       const cells = row.querySelectorAll("td");
       if (cells.length > 7) {
-        const symbol = cells[6]?.innerText.trim(); // Symbol column
-        const lastClosing = cells[7]?.innerText.trim(); // Last closing price column
+        const symbol = cells[6]?.innerText.trim(); // Symbol Index
+        const lastClosing = cells[7]?.innerText.trim(); // Last Closing Price Index
 
         if (symbol && lastClosing && !isNaN(lastClosing)) {
           prices[symbol] = parseFloat(lastClosing);
@@ -49,26 +49,24 @@ async function fetchLastClosingPrices() {
   }
 }
 
-// تحميل ملف الإكسل + دمج الأسعار + عرض الجدول
+// تحميل sheet + دمج الأسعار + رسم الجدول
 async function loadExcelData() {
   const loading = document.getElementById("loading-indicator");
+
   try {
     loading.classList.remove("hidden");
 
-    // قراءة ملف Excel من GitHub
     const response = await fetch(fileUrl);
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-    // جلب الأسعار اليومية من البورصة
     const marketPrices = await fetchLastClosingPrices();
 
-    // دمج الأسعار في الجدول
     data.forEach(row => {
       if (marketPrices[row.Symbol]) {
-          row["Last Price"] = marketPrices[row.Symbol];
+        row["Last Price"] = marketPrices[row.Symbol];
       }
     });
 
@@ -82,7 +80,7 @@ async function loadExcelData() {
   }
 }
 
-// رسم الجدول
+// عرض الجدول
 function renderTable(data) {
   const table = document.getElementById("dataTable");
   const thead = table.querySelector("thead");
@@ -93,18 +91,16 @@ function renderTable(data) {
 
   const columns = Object.keys(data[0]);
 
-  // رأس الجدول
   const headerRow = document.createElement("tr");
   columns.forEach((col, index) => {
     const th = document.createElement("th");
     th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
-    th.innerHTML = `${col} <span class="sort-arrow text-gray-300"></span>`;
+    th.innerHTML = `${col}`;
     th.addEventListener("click", () => sortTableByColumn(index));
     headerRow.appendChild(th);
   });
   thead.appendChild(headerRow);
 
-  // صفوف الجدول
   data.forEach((row, i) => {
     const tr = document.createElement("tr");
     tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
@@ -114,19 +110,22 @@ function renderTable(data) {
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300 text-sm";
 
-      if (!isNaN(parseFloat(value)) && value !== "") {
+      // لا ننسّق عمود ASE Code
+      if (col !== "ASE Code" && !isNaN(parseFloat(value)) && value !== "") {
         value = parseFloat(value).toFixed(2);
-        if (value < 0) td.classList.add("text-red-600");
+
+        // السالب أحمر
+        if (parseFloat(value) < 0) td.classList.add("text-red-600");
+
+        // العمود يحتوي نسبة مئوية → أضف %
+        if (col.includes("%") || col.toLowerCase().includes("pct")) {
+          value = value + "%";
+        }
       }
 
       td.textContent = value;
       tr.appendChild(td);
     });
-
-    // السطر الأخير للمجاميع
-    if (row[columns[0]] && row[columns[0]].toString().toLowerCase().includes("total")) {
-      tr.className = "bg-gray-800 text-white font-bold";
-    }
 
     tbody.appendChild(tr);
   });
@@ -141,21 +140,23 @@ document.getElementById("searchInput").addEventListener("keyup", function () {
   });
 });
 
-// فرز الأعمدة + المحافظة على آخر سطر
+// فرز الأعمدة
 function sortTableByColumn(colIndex) {
   const tbody = document.querySelector("#dataTable tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  const lastRow = rows.pop();
 
   const ascending = tbody.dataset.sortOrder !== "asc";
   tbody.dataset.sortOrder = ascending ? "asc" : "desc";
 
   rows.sort((a, b) => {
-    const aVal = a.children[colIndex].textContent.trim();
-    const bVal = b.children[colIndex].textContent.trim();
+    const aVal = a.children[colIndex].textContent.replace("%", "").trim();
+    const bVal = b.children[colIndex].textContent.replace("%", "").trim();
     const aNum = parseFloat(aVal);
     const bNum = parseFloat(bVal);
-    if (!isNaN(aNum) && !isNaN(bNum)) return ascending ? aNum - bNum : bNum - aNum;
+
+    if (!isNaN(aNum) && !isNaN(bNum))
+      return ascending ? aNum - bNum : bNum - aNum;
+
     return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
@@ -163,12 +164,10 @@ function sortTableByColumn(colIndex) {
     row.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
     tbody.appendChild(row);
   });
-
-  tbody.appendChild(lastRow);
 }
 
-// زر تحديث البيانات
+// زر التحديث
 document.getElementById("refresh-btn").addEventListener("click", loadExcelData);
 
-// تحميل أول مرة
+// تشغيل عند فتح الصفحة
 loadExcelData();

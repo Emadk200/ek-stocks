@@ -1,7 +1,7 @@
 const fileUrl = "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx?v=" + Date.now();
 const proxyURL = "https://bitter-frost-8e4d.emk200.workers.dev/";
 
-// عرض التاريخ
+// التاريخ
 document.getElementById("current-date").textContent =
   new Date().toLocaleString("en-US", {
     weekday: "long",
@@ -14,11 +14,11 @@ document.getElementById("current-date").textContent =
 
 // الملاحظة الثابتة
 document.getElementById("notes").innerHTML = `
-- Dashboard updates Last Price live from ASE via proxy.
+- Dashboard updates Last Price live from ASE.
 - Change & Change% are interpreted directly from your Excel file.
 `;
 
-// جلب الأسعار من البورصة عبر الـ Worker
+// جلب الأسعار من البورصة
 async function fetchLastClosingPrices() {
   try {
     const res = await fetch(proxyURL);
@@ -40,43 +40,35 @@ async function fetchLastClosingPrices() {
       }
     });
 
-    // ✅ نضيف المتغير هنا
     window._lastPricesTest = prices;
-
     return prices;
 
-  } catch (error) {
-    console.error("Error fetching prices:", error);
-    window._lastPricesTest = {}; // حتى لا يظهر undefined
+  } catch (err) {
+    console.error("Error fetching prices:", err);
     return {};
   }
 }
 
-// تحميل البيانات وعرضها
+// تحميل ملف Excel ودمج الأسعار
 async function loadExcelData() {
-  const loading = document.getElementById("loading-indicator");
-  try {
-    loading.classList.remove("hidden");
+  document.getElementById("loading-indicator").classList.remove("hidden");
 
-    const response = await fetch(fileUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const res = await fetch(fileUrl);
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-    const marketPrices = await fetchLastClosingPrices();
+  const marketPrices = await fetchLastClosingPrices();
 
-    data.forEach(row => {
-      if (marketPrices[row.Symbol]) {
-        row["Last Price"] = marketPrices[row.Symbol];
-      }
-    });
+  data.forEach(row => {
+    if (row.Symbol && marketPrices[row.Symbol]) {
+      row["Last Price"] = marketPrices[row.Symbol];
+    }
+  });
 
-    renderTable(data);
-
-  } finally {
-    loading.classList.add("hidden");
-  }
+  renderTable(data);
+  document.getElementById("loading-indicator").classList.add("hidden");
 }
 
 // عرض الجدول
@@ -101,47 +93,38 @@ function renderTable(data) {
   });
   thead.appendChild(headerRow);
 
-  // صفوف
+  // الصفوف
   data.forEach((row, i) => {
+    const isTotalRow = row.Symbol && row.Symbol.toLowerCase().includes("tot");
     const tr = document.createElement("tr");
-    const isTotalRow = row[columns[0]].toString().toLowerCase().includes("total");
-    tr.className = isTotalRow ? "bg-gray-800 text-white font-bold" : (i % 2 === 0 ? "bg-gray-100" : "bg-gray-200");
+    tr.className = isTotalRow ? "bg-gray-700 text-white font-bold" : (i % 2 === 0 ? "bg-gray-100" : "bg-gray-200");
 
-    const changeColumn = Object.keys(row).find(c =>
-      c.toLowerCase().includes("change") ||
-      c.toLowerCase().includes("diff") ||
-      c.toLowerCase().includes("dev")
-    );
-
-    const rawChange = changeColumn ? parseFloat(row[changeColumn]) : NaN;
+    const changeVal = parseFloat(row["Change"]);
+    const changePctVal = parseFloat(row["Change %"]) * 100;
 
     columns.forEach(col => {
       let value = row[col];
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300 text-sm";
 
-      // تنسيق النسب %
-      if (col.toLowerCase().includes("pct") || col.includes("%")) {
-        value = Math.round(parseFloat(value) * 100) + "%";
+      if (col === "Change" && !isNaN(changeVal)) {
+        value = changeVal.toFixed(3);
+        td.classList.add(changeVal > 0 ? "text-green-600" : changeVal < 0 ? "text-red-600" : "text-gray-800");
       }
 
-      // تنسيق Change ألوان
-      if (col === changeColumn) {
-        if (rawChange > 0) td.classList.add("text-green-600", "font-semibold");
-        else if (rawChange < 0) td.classList.add("text-red-600", "font-semibold");
-        else td.classList.add("text-gray-800");
+      if (col === "Change %" && !isNaN(changePctVal)) {
+        value = Math.round(changePctVal) + "%";
+        td.classList.add(changePctVal > 0 ? "text-green-600" : changePctVal < 0 ? "text-red-600" : "text-gray-800");
       }
 
-      // إضافة السهم بجانب Last Price
-      if (col === "Last Price" && !isNaN(rawChange)) {
-        let arrow = rawChange > 0 ? "↑" : rawChange < 0 ? "↓" : "-";
-        let arrowClass = rawChange > 0 ? "text-green-600" : rawChange < 0 ? "text-red-600" : "text-gray-600";
-        td.innerHTML = `<span>${value}</span> <span class="${arrowClass} ml-1">${arrow}</span>`;
-        tr.appendChild(td);
-        return;
+      if (col === "Last Price" && !isNaN(changeVal)) {
+        const arrow = changeVal > 0 ? "↑" : changeVal < 0 ? "↓" : "-";
+        const arrowColor = changeVal > 0 ? "text-green-600" : changeVal < 0 ? "text-red-600" : "text-gray-600";
+        td.innerHTML = `${value} <span class="${arrowColor}">${arrow}</span>`;
+      } else {
+        td.textContent = value;
       }
 
-      td.textContent = value;
       tr.appendChild(td);
     });
 
@@ -149,29 +132,28 @@ function renderTable(data) {
   });
 }
 
-// بحث
+// البحث
 document.getElementById("searchInput").addEventListener("keyup", function () {
   const filter = this.value.toLowerCase();
-  const rows = document.querySelectorAll("#dataTable tbody tr");
-  rows.forEach((row, index) => {
-    if (index === rows.length - 1) return;
+  document.querySelectorAll("#dataTable tbody tr").forEach((row, i, rows) => {
+    if (i === rows.length - 1) return;
     row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
   });
 });
 
-// فرز
+// الفرز
 function sortTableByColumn(colIndex) {
   const tbody = document.querySelector("#dataTable tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
   const totalRow = rows.pop();
-  const ascending = tbody.dataset.sortOrder !== "asc";
-  tbody.dataset.sortOrder = ascending ? "asc" : "desc";
+  const asc = tbody.dataset.sortOrder !== "asc";
+  tbody.dataset.sortOrder = asc ? "asc" : "desc";
 
   rows.sort((a, b) => {
-    const aVal = a.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
-    const bVal = b.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
-    const aNum = parseFloat(aVal), bNum = parseFloat(bVal);
-    return (!isNaN(aNum) && !isNaN(bNum)) ? (ascending ? aNum - bNum : bNum - aNum) : (ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal));
+    const aText = a.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
+    const bText = b.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
+    const aNum = parseFloat(aText), bNum = parseFloat(bText);
+    return (!isNaN(aNum) && !isNaN(bNum)) ? (asc ? aNum - bNum : bNum - aNum) : (asc ? aText.localeCompare(bText) : bText.localeCompare(aText));
   });
 
   rows.forEach((row, i) => {

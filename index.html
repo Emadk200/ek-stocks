@@ -5,52 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EK Stocks Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans p-6">
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- Header Section -->
+    <div class="flex justify-between items-start mb-6">
+      <!-- Left: Date + Note -->
+      <div>
+        <p id="current-date" class="text-sm text-gray-700 font-semibold"></p>
+        <textarea id="note" class="mt-2 w-80 p-2 border rounded-lg text-sm resize-y" rows="3"
+          placeholder="أدخل الملاحظات أو الرسائل هنا..."></textarea>
+      </div>
 
-  <div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold mb-4 text-center">📊 EK Stocks Dashboard</h1>
-
-    <!-- التاريخ والوقت -->
-    <div id="datetime" class="text-sm text-gray-600 mb-2 text-left"></div>
-
-    <!-- مربع الملاحظات -->
-    <div id="note" class="bg-gray-100 p-3 rounded-md text-sm text-gray-800 mb-6 leading-relaxed">
-      <p>• يرجى تحديث الملف أسبوعيًا أو بعد التغييرات الجوهرية.</p>
-      <p>• الأسعار المحدثة تعتمد على آخر بيانات السوق المتوفرة.</p>
-      <p>• الأرقام مقربة لعدد عشريين والنسب المئوية مميزة بالعلامة %.</p>
+      <!-- Right: Refresh + Search -->
+      <div class="flex flex-col items-end space-y-2">
+        <button id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+          <span>🔄</span><span>تحديث البيانات</span>
+        </button>
+        <input id="searchInput" type="text" placeholder="بحث..." class="border p-2 rounded-lg text-sm w-48">
+      </div>
     </div>
 
-    <!-- مربع البحث -->
-    <div class="mb-4">
-      <input 
-        type="text" 
-        id="searchInput" 
-        placeholder="🔍 Search stocks..." 
-        class="border border-gray-300 rounded-md px-3 py-2 w-full focus:ring focus:ring-blue-300 focus:border-blue-400"
-      >
-    </div>
-
-    <!-- زر التحديث -->
-    <div class="mb-4 text-right">
-      <button id="refreshBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
-        🔄 Refresh Data
-      </button>
-    </div>
-
-    <!-- جدول الأسهم -->
-    <div class="overflow-x-auto">
-      <table id="stockTable" class="min-w-full border border-gray-300 rounded-lg shadow-sm">
-        <thead class="bg-gray-800 text-white"></thead>
-        <tbody></tbody>
-      </table>
+<!-- Right: Refresh + Search -->
+<div class="flex flex-col items-end space-y-2">
+  <div class="flex items-center space-x-2">
+    <button id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+      <span>🔄</span><span>تحديث البيانات</span>
+    </button>
+    <div id="loading-indicator" class="hidden text-sm text-gray-600 flex items-center">
+      <svg class="animate-spin h-4 w-4 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <span>جارٍ تحديث البيانات...</span>
     </div>
   </div>
 
-  <!-- مكتبة Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <input id="searchInput" type="text" placeholder="بحث..." class="border p-2 rounded-lg text-sm w-48">
+</div>
 
-  <!-- ملف الجافاسكريبت -->
+
+    <!-- Table Section -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table id="dataTable" class="min-w-full text-sm text-left border-collapse">
+          <thead class="bg-gray-800 text-white"></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden text-center mt-4 text-gray-700 font-semibold">
+      جاري تحميل البيانات...
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

@@ -1,50 +1,30 @@
-// const fileUrl = "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx";
 const fileUrl = "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx?v=" + Date.now();
-
 
 // تحميل البيانات من GitHub
 async function loadExcelData() {
+  const loading = document.getElementById("loading-indicator");
   try {
-    document.getElementById("loading").classList.remove("hidden");
+    loading.classList.remove("hidden");
     const response = await fetch(fileUrl);
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-    renderTable(json);
+
+    // ✅ هنا التغيير المهم
+    const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    renderTable(data);
   } catch (error) {
-    console.error("خطأ في تحميل الملف:", error);
+    console.error(error);
     alert("حدث خطأ أثناء تحميل البيانات من GitHub!");
   } finally {
-    document.getElementById("loading").classList.add("hidden");
+    loading.classList.add("hidden");
   }
 }
 
-async function loadExcelData() {
-  const loadingDiv = document.getElementById("loading-indicator");
-  try {
-    loadingDiv.classList.remove("hidden"); // إظهار مؤشر التحميل
-    document.getElementById("loading").classList.remove("hidden");
-
-    const response = await fetch(fileUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-    renderTable(json);
-  } catch (error) {
-    console.error("خطأ في تحميل الملف:", error);
-    alert("حدث خطأ أثناء تحميل البيانات من GitHub!");
-  } finally {
-    document.getElementById("loading").classList.add("hidden");
-    loadingDiv.classList.add("hidden"); // إخفاء مؤشر التحميل بعد انتهاء العملية
-  }
-}
-
-
-// عرض التاريخ الميلادي الحالي
+// عرض التاريخ الميلادي
 document.getElementById("current-date").textContent =
   new Date().toLocaleString("en-US", {
     weekday: "long",
@@ -63,12 +43,11 @@ document.getElementById("searchInput").addEventListener("keyup", function () {
   const filter = this.value.toLowerCase();
   const rows = document.querySelectorAll("#dataTable tbody tr");
   rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(filter) ? "" : "none";
+    row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
   });
 });
 
-// إنشاء الجدول بتنسيقات متكاملة
+// رسم الجدول
 function renderTable(data) {
   const table = document.getElementById("dataTable");
   const thead = table.querySelector("thead");
@@ -77,87 +56,73 @@ function renderTable(data) {
   thead.innerHTML = "";
   tbody.innerHTML = "";
 
-  // رأس الجدول مع أسهم الفرز
+  const columns = Object.keys(data[0]);
+
+  // رأس الجدول
   const headerRow = document.createElement("tr");
-  data[0].forEach((header, index) => {
+  columns.forEach((col, index) => {
     const th = document.createElement("th");
-    th.className = "px-3 py-2 border-b border-gray-300 cursor-pointer select-none";
-    th.innerHTML = `${header} <span class='sort-arrow text-gray-400'></span>`;
-    th.addEventListener("click", () => sortTableByColumn(table, index));
+    th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
+    th.innerHTML = `${col} <span class="sort-arrow text-gray-300"></span>`;
+    th.addEventListener("click", () => sortTableByColumn(index));
     headerRow.appendChild(th);
   });
   thead.appendChild(headerRow);
 
-  // البيانات
-  data.slice(1).forEach((row, i) => {
+  // صفوف
+  data.forEach((row, i) => {
     const tr = document.createElement("tr");
-
-    // zebra striping الثابت
     tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
 
-    row.forEach((cell, j) => {
+    columns.forEach(col => {
+      let value = row[col];
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300";
 
-      if (typeof cell === "number") {
-        td.textContent = cell.toFixed(2);
-        if (data[0][j].includes("%")) td.textContent += " %";
-        if (cell < 0) td.classList.add("text-red-600");
-      } else {
-        td.textContent = cell;
+      if (!isNaN(parseFloat(value)) && value !== "") {
+        value = parseFloat(value).toFixed(2);
+        if (value < 0) td.classList.add("text-red-600");
       }
 
+      td.textContent = value;
       tr.appendChild(td);
     });
 
-    // صف المجاميع/المتوسط
-    if (row[0] && row[0].toString().toLowerCase().includes("total")) {
+    // آخر سطر = مجاميع
+    if (row[columns[0]] && row[columns[0]].toString().toLowerCase().includes("total")) {
       tr.className = "bg-gray-800 text-white font-semibold";
-      const tds = tr.querySelectorAll("td");
-      tds.forEach(td => (td.style.color = "#fff"));
     }
 
     tbody.appendChild(tr);
   });
 }
 
-// الفرز مع الأسهم واستثناء صف المجاميع
-function sortTableByColumn(table, columnIndex) {
-  const tbody = table.querySelector("tbody");
+// فرز الأعمدة + الحفاظ على صف المجاميع
+function sortTableByColumn(colIndex) {
+  const tbody = document.querySelector("#dataTable tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  const totalRow = rows.find(r => r.classList.contains("bg-gray-800"));
-  const dataRows = rows.filter(r => r !== totalRow);
+  const lastRow = rows.pop();
 
-  const headerCells = table.querySelectorAll("th");
-  headerCells.forEach(th => th.querySelector(".sort-arrow").textContent = "");
+  const ascending = tbody.dataset.sortOrder !== "asc";
+  tbody.dataset.sortOrder = ascending ? "asc" : "desc";
 
-  let isAscending = table.dataset.sortCol === columnIndex.toString() && table.dataset.sortDir === "asc" ? false : true;
-  table.dataset.sortCol = columnIndex;
-  table.dataset.sortDir = isAscending ? "asc" : "desc";
-
-  const arrow = headerCells[columnIndex].querySelector(".sort-arrow");
-  arrow.textContent = isAscending ? "▲" : "▼";
-
-  dataRows.sort((a, b) => {
-    const aText = a.children[columnIndex].textContent.replace("%", "").trim();
-    const bText = b.children[columnIndex].textContent.replace("%", "").trim();
-    const aNum = parseFloat(aText);
-    const bNum = parseFloat(bText);
+  rows.sort((a, b) => {
+    const aVal = a.children[colIndex].textContent.replace("%", "").trim();
+    const bVal = b.children[colIndex].textContent.replace("%", "").trim();
+    const aNum = parseFloat(aVal);
+    const bNum = parseFloat(bVal);
     if (!isNaN(aNum) && !isNaN(bNum))
-      return isAscending ? aNum - bNum : bNum - aNum;
-    return isAscending
-      ? aText.localeCompare(bText)
-      : bText.localeCompare(aText);
+      return ascending ? aNum - bNum : bNum - aNum;
+    return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
-  // إعادة ترتيب مع الحفاظ على ألوان zebra
-  dataRows.forEach((row, i) => {
+  rows.forEach((row, i) => {
     row.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
     tbody.appendChild(row);
   });
 
-  if (totalRow) tbody.appendChild(totalRow);
+  tbody.appendChild(lastRow);
 }
 
-// تحميل مبدئي
+// تشغيل أول تحميل
 loadExcelData();

@@ -101,9 +101,19 @@ function renderTable(data) {
   });
   thead.appendChild(headerRow);
 
-  data.forEach((row, i) => {
-    const tr = document.createElement("tr");
-    tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
+	data.forEach((row, i) => {
+	  const tr = document.createElement("tr");
+
+	  const isTotalRow =
+	    row[Object.keys(row)[0]] &&
+	    row[Object.keys(row)[0]].toString().toLowerCase().includes("total");
+
+	  // صف المجاميع ثابت ولونه مميز
+	  if (isTotalRow) {
+	    tr.className = "bg-gray-800 text-white font-bold";
+	  } else {
+	    tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
+	  }
 
     columns.forEach(col => {
       let value = row[col];
@@ -159,25 +169,33 @@ function sortTableByColumn(colIndex) {
   const tbody = document.querySelector("#dataTable tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
 
+  // ✅ افصل سطر المجاميع
+  const totalRow = rows.pop();
+
   const ascending = tbody.dataset.sortOrder !== "asc";
   tbody.dataset.sortOrder = ascending ? "asc" : "desc";
 
   rows.sort((a, b) => {
     const aVal = a.children[colIndex].textContent.replace("%", "").trim();
     const bVal = b.children[colIndex].textContent.replace("%", "").trim();
+
     const aNum = parseFloat(aVal);
     const bNum = parseFloat(bVal);
 
-    if (!isNaN(aNum) && !isNaN(bNum))
+    if (!isNaN(aNum) && !isNaN(bNum)) {
       return ascending ? aNum - bNum : bNum - aNum;
-
+    }
     return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
+  // ✅ أعد zebra striping بدون التأثير على سطر المجاميع
   rows.forEach((row, i) => {
     row.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
     tbody.appendChild(row);
   });
+
+  // ✅ أرجع سطر المجاميع في النهاية دائمًا
+  tbody.appendChild(totalRow);
 }
 
 // زر التحديث

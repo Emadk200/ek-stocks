@@ -116,6 +116,8 @@ function renderTable(data) {
 	  }
 
     columns.forEach(col => {
+	const rawChange = parseFloat(row["Change"]);// ← نأخذ القيمة قبل التنسيق
+
       let value = row[col];
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300 text-sm";
@@ -148,21 +150,19 @@ function renderTable(data) {
 	}
       }
 
-	// إضافة سهم اتجاه بجانب Last Price بناء على Change
-	if (col === "Last Price") {
-	  const change = parseFloat(row["Change"]);
-	  if (!isNaN(change)) {
-	    if (change > 0) {
-	      value = value + " ↑";
-	      td.classList.add("text-green-600", "font-semibold");
-	    } else if (change < 0) {
-	      value = value + " ↓";
-	      td.classList.add("text-red-600", "font-semibold");
-	    } else {
-	      value = value + " -";
-	      td.classList.add("text-gray-700");
-	    }
+	// سهم الاتجاه في عمود Last Price بناءً على Change الخام
+	if (col === "Last Price" && !isNaN(rawChange)) {
+	  if (rawChange > 0) {
+	    value = value + " ↑";
+	    td.classList.add("text-green-600", "font-semibold");
+	  } else if (rawChange < 0) {
+	    value = value + " ↓";
+	    td.classList.add("text-red-600", "font-semibold");
+	  } else {
+	    value = value + " -";
+	    td.classList.add("text-gray-700");
 	  }
+	}
 	}
 
 	// ضع القيمة داخل الـ <td>

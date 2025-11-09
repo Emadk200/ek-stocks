@@ -142,8 +142,9 @@ function renderTable(data) {
 	}
 
         // العمود يحتوي نسبة مئوية → أضف % + نسبة مئوية → اضرب في 100 قبل الإضافة
+	// نسبة مئوية → اضرب ×100 وعرض بدون كسور
 	if (col.includes("%") || col.toLowerCase().includes("pct")) {
-	  value = (parseFloat(value) * 100).toFixed(2) + "%";
+	  value = Math.round(parseFloat(value) * 100) + "%";
 	}
       }
 

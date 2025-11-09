@@ -148,7 +148,25 @@ function renderTable(data) {
 	}
       }
 
-      td.textContent = value;
+	// إضافة سهم اتجاه بجانب Last Price بناء على Change
+	if (col === "Last Price") {
+	  const change = parseFloat(row["Change"]);
+	  if (!isNaN(change)) {
+	    if (change > 0) {
+	      value = value + " ↑";
+	      td.classList.add("text-green-600", "font-semibold");
+	    } else if (change < 0) {
+	      value = value + " ↓";
+	      td.classList.add("text-red-600", "font-semibold");
+	    } else {
+	      value = value + " -";
+	      td.classList.add("text-gray-700");
+	    }
+	  }
+	}
+
+	// ضع القيمة داخل الـ <td>
+	td.textContent = value;
       tr.appendChild(td);
     });
 

@@ -11,14 +11,14 @@ document.getElementById("current-date").textContent =
     minute: "2-digit",
   });
 
-// الملاحظة (تستطيع تعديل النص داخل هذا الحقل)
+// الملاحظة الثابتة
 document.getElementById("notes").innerHTML = `
-- This dashboard updates live prices from ASE website.
-- Last Price is fetched automatically when pressing update.
-- Other values are taken from your Excel sheet.
+- Dashboard updates live prices from ASE.
+- Last Price updates automatically when clicking refresh.
+- All other values come from your Excel sheet.
 `;
 
-// جلب الأسعار من موقع البورصة
+// جلب الأسعار من البورصة
 async function fetchLastClosingPrices() {
   try {
     const res = await fetch("https://www.ase.com.jo/en/bulletins/daily/new");
@@ -32,9 +32,8 @@ async function fetchLastClosingPrices() {
     rows.forEach(row => {
       const cells = row.querySelectorAll("td");
       if (cells.length > 7) {
-        const symbol = cells[6]?.innerText.trim(); // Symbol Index
-        const lastClosing = cells[7]?.innerText.trim(); // Last Closing Price Index
-
+        const symbol = cells[6]?.innerText.trim();
+        const lastClosing = cells[7]?.innerText.trim();
         if (symbol && lastClosing && !isNaN(lastClosing)) {
           prices[symbol] = parseFloat(lastClosing);
         }
@@ -49,10 +48,9 @@ async function fetchLastClosingPrices() {
   }
 }
 
-// تحميل sheet + دمج الأسعار + رسم الجدول
+// تحميل البيانات وعرضها
 async function loadExcelData() {
   const loading = document.getElementById("loading-indicator");
-
   try {
     loading.classList.remove("hidden");
 
@@ -91,82 +89,57 @@ function renderTable(data) {
 
   const columns = Object.keys(data[0]);
 
+  // الرؤوس
   const headerRow = document.createElement("tr");
   columns.forEach((col, index) => {
     const th = document.createElement("th");
     th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
-    th.innerHTML = `${col}`;
+    th.textContent = col;
     th.addEventListener("click", () => sortTableByColumn(index));
     headerRow.appendChild(th);
   });
   thead.appendChild(headerRow);
 
-	data.forEach((row, i) => {
-	  const tr = document.createElement("tr");
+  // الصفوف
+  data.forEach((row, i) => {
+    const tr = document.createElement("tr");
 
-	  const isTotalRow =
-	    row[Object.keys(row)[0]] &&
-	    row[Object.keys(row)[0]].toString().toLowerCase().includes("total");
-
-	  // صف المجاميع ثابت ولونه مميز
-	  if (isTotalRow) {
-	    tr.className = "bg-gray-800 text-white font-bold";
-	  } else {
-	    tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
-	  }
+    const isTotalRow = row[columns[0]].toString().toLowerCase().includes("total");
+    tr.className = isTotalRow ? "bg-gray-800 text-white font-bold" : (i % 2 === 0 ? "bg-gray-100" : "bg-gray-200");
 
     columns.forEach(col => {
-	const rawChange = parseFloat(row["Change"]);// ← نأخذ القيمة قبل التنسيق
-
       let value = row[col];
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300 text-sm";
 
-      // لا ننسّق عمود ASE Code
+      // حفظ قيمة Change قبل التنسيق
+      const rawChange = parseFloat(row["Change"]);
+
+      // عدم تنسيق ASE Code
       if (col !== "ASE Code" && !isNaN(parseFloat(value)) && value !== "") {
         value = parseFloat(value).toFixed(2);
-
-        // السالب أحمر
-	// تلوين خاص لعمودي Change و Change %
-	if (col === "Change" || col === "Change %") {
-
-	  const num = parseFloat(value);
-
-	  if (!isNaN(num)) {
-	    if (num > 0) {
-	      td.classList.add("text-green-600", "font-semibold"); // أخضر
-	    } else if (num < 0) {
-	      td.classList.add("text-red-600", "font-semibold"); // أحمر
-	    } else {
-	      td.classList.add("text-gray-800"); // أسود للقيمة صفر
-	    }
-	  }
-	}
-
-        // العمود يحتوي نسبة مئوية → أضف % + نسبة مئوية → اضرب في 100 قبل الإضافة
-	// نسبة مئوية → اضرب ×100 وعرض بدون كسور
-	if (col.includes("%") || col.toLowerCase().includes("pct")) {
-	  value = Math.round(parseFloat(value) * 100) + "%";
-	}
       }
 
-	// سهم الاتجاه في عمود Last Price بناءً على Change الخام
-	if (col === "Last Price" && !isNaN(rawChange)) {
-	  if (rawChange > 0) {
-	    value = value + " ↑";
-	    td.classList.add("text-green-600", "font-semibold");
-	  } else if (rawChange < 0) {
-	    value = value + " ↓";
-	    td.classList.add("text-red-600", "font-semibold");
-	  } else {
-	    value = value + " -";
-	    td.classList.add("text-gray-700");
-	  }
-	}
-	}
+      // نسب → ×100 بدون كسور
+      if (col.includes("%") || col.toLowerCase().includes("pct")) {
+        value = Math.round(parseFloat(value) * 100) + "%";
+      }
 
-	// ضع القيمة داخل الـ <td>
-	td.textContent = value;
+      // تلوين Change & Change %
+      if (col === "Change" || col === "Change %") {
+        if (rawChange > 0) td.classList.add("text-green-600", "font-semibold");
+        else if (rawChange < 0) td.classList.add("text-red-600", "font-semibold");
+        else td.classList.add("text-gray-800");
+      }
+
+      // سهم الاتجاه بجانب Last Price
+      if (col === "Last Price" && !isNaN(rawChange)) {
+        if (rawChange > 0) value = value + " ↑";
+        else if (rawChange < 0) value = value + " ↓";
+        else value = value + " -";
+      }
+
+      td.textContent = value;
       tr.appendChild(td);
     });
 
@@ -174,51 +147,42 @@ function renderTable(data) {
   });
 }
 
-// البحث الفوري
+// البحث
 document.getElementById("searchInput").addEventListener("keyup", function () {
   const filter = this.value.toLowerCase();
   const rows = document.querySelectorAll("#dataTable tbody tr");
-  rows.forEach(row => {
+
+  rows.forEach((row, index) => {
+    if (index === rows.length - 1) return; // اترك صف المجاميع دائمًا
     row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
   });
 });
 
-// فرز الأعمدة
+// الفرز
 function sortTableByColumn(colIndex) {
   const tbody = document.querySelector("#dataTable tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
 
-  // ✅ افصل سطر المجاميع
   const totalRow = rows.pop();
-
   const ascending = tbody.dataset.sortOrder !== "asc";
   tbody.dataset.sortOrder = ascending ? "asc" : "desc";
 
   rows.sort((a, b) => {
-    const aVal = a.children[colIndex].textContent.replace("%", "").trim();
-    const bVal = b.children[colIndex].textContent.replace("%", "").trim();
-
+    const aVal = a.children[colIndex].textContent.replace("%", "").replace("↑","").replace("↓","").replace("-","").trim();
+    const bVal = b.children[colIndex].textContent.replace("%", "").replace("↑","").replace("↓","").replace("-","").trim();
     const aNum = parseFloat(aVal);
     const bNum = parseFloat(bVal);
-
-    if (!isNaN(aNum) && !isNaN(bNum)) {
-      return ascending ? aNum - bNum : bNum - aNum;
-    }
+    if (!isNaN(aNum) && !isNaN(bNum)) return ascending ? aNum - bNum : bNum - aNum;
     return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
-  // ✅ أعد zebra striping بدون التأثير على سطر المجاميع
   rows.forEach((row, i) => {
     row.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
     tbody.appendChild(row);
   });
 
-  // ✅ أرجع سطر المجاميع في النهاية دائمًا
   tbody.appendChild(totalRow);
 }
 
-// زر التحديث
 document.getElementById("refresh-btn").addEventListener("click", loadExcelData);
-
-// تشغيل عند فتح الصفحة
 loadExcelData();

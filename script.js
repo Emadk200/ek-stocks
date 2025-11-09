@@ -41,7 +41,9 @@ async function fetchLastClosingPrices() {
 
   } catch (error) {
     console.error("Error fetching prices:", error);
-    return {};
+	return {};
+finally {
+  window._lastPricesTest = prices; // ✅ أضف هذا
   }
 }
 

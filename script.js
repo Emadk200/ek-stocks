@@ -25,6 +25,7 @@ async function fetchLastClosingPrices() {
     const html = await res.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
+
     const rows = doc.querySelectorAll("table tbody tr");
     const prices = {};
 
@@ -33,15 +34,22 @@ async function fetchLastClosingPrices() {
       if (cells.length > 7) {
         const symbol = cells[6]?.innerText.trim();
         const lastClosing = parseFloat(cells[7]?.innerText.trim());
-        if (symbol && !isNaN(lastClosing)) prices[symbol] = lastClosing;
+        if (symbol && !isNaN(lastClosing)) {
+          prices[symbol] = lastClosing;
+        }
       }
     });
-	window._lastPricesTest = prices;
+
+    // ✅ نضيف المتغير هنا
+    window._lastPricesTest = prices;
+
     return prices;
 
   } catch (error) {
     console.error("Error fetching prices:", error);
-	return {};
+    window._lastPricesTest = {}; // حتى لا يظهر undefined
+    return {};
+  }
 }
 
 // تحميل البيانات وعرضها

@@ -115,7 +115,21 @@ function renderTable(data) {
         value = parseFloat(value).toFixed(2);
 
         // السالب أحمر
-        if (parseFloat(value) < 0) td.classList.add("text-red-600");
+	// تلوين خاص لعمودي Change و Change %
+	if (col === "Change" || col === "Change %") {
+
+	  const num = parseFloat(value);
+
+	  if (!isNaN(num)) {
+	    if (num > 0) {
+	      td.classList.add("text-green-600", "font-semibold"); // أخضر
+	    } else if (num < 0) {
+	      td.classList.add("text-red-600", "font-semibold"); // أحمر
+	    } else {
+	      td.classList.add("text-gray-800"); // أسود للقيمة صفر
+	    }
+	  }
+	}
 
         // العمود يحتوي نسبة مئوية → أضف %
         if (col.includes("%") || col.toLowerCase().includes("pct")) {

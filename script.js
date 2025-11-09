@@ -32,8 +32,9 @@ async function fetchLastClosingPrices() {
     rows.forEach(row => {
       const cells = row.querySelectorAll("td");
       if (cells.length > 7) {
-        const symbol = cells[6]?.innerText.trim();
-        const lastClosing = cells[7]?.innerText.trim();
+        const symbol = cells[6]?.innerText.trim(); // Symbol column
+        const lastClosing = cells[7]?.innerText.trim(); // Last closing price column
+
         if (symbol && lastClosing && !isNaN(lastClosing)) {
           prices[symbol] = parseFloat(lastClosing);
         }
@@ -41,6 +42,7 @@ async function fetchLastClosingPrices() {
     });
 
     return prices;
+
   } catch (error) {
     console.error("Error fetching prices:", error);
     return {};
@@ -65,8 +67,8 @@ async function loadExcelData() {
 
     // دمج الأسعار في الجدول
     data.forEach(row => {
-      if (marketPrices[row.Code]) {
-        row["Last Price"] = marketPrices[row.Code];
+      if (marketPrices[row.Symbol]) {
+          row["Last Price"] = marketPrices[row.Symbol];
       }
     });
 

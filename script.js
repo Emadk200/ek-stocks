@@ -1,58 +1,102 @@
-// ====================== إعدادات ======================
+const EXCEL_URL = "https://emadk200.github.io/ek-stocks/watchliststocks.xlsx";
+const ASE_DAILY_URL = "https://bitter-frost-8e4d.emk200.workers.dev/sites/default/files/daily-bulletin/en/Daily%20Bulletin.xlsx";
 
-// اسم ملف الإكسل (يجب أن يكون في نفس مجلد index.html)
-const EXCEL_FILE_URL = "watchliststocks.xlsx";
+let jsonData = [];
+let tableHeaders = [];
 
-// عنصر الحالة (Loading…)
-const loadingEl = document.getElementById("loadingStatus");
-
-// ====================== تحميل ملف الإكسل ======================
-
+// ========================= LOAD WATCHLIST =========================
 async function loadExcelData() {
-  loadingEl.style.display = "block";
+  document.getElementById("loadingStatus").style.display = "block";
 
-let response;
-try {
-  response = await fetch(EXCEL_FILE_URL);
-  if (!response.ok) throw new Error("HTTP " + response.status);
-} catch(e) {
-  console.error("❌ Error loading Excel file:", e);
-  return;
-}
+  const resp = await fetch(EXCEL_URL);
+  const buf = await resp.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  let data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-  const arrayBuffer = await response.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+  data = data.filter(r => r.Symbol && r.Symbol.trim() !== "");
 
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+  let totalRow = data.find(r => r.Symbol === "TotAvg" || r.Symbol === "Tot/Avg");
+  data = data.filter(r => r.Symbol !== "TotAvg" && r.Symbol !== "Tot/Avg");
 
-  // ✅ إجبار المكتبة على عدم إسقاط آخر الصفوف
-  const range = XLSX.utils.decode_range(sheet['!ref']);
-  range.e.r = range.e.r + 3;
-  sheet['!ref'] = XLSX.utils.encode_range(range);
-
-  // نقرأ القيم بصيغة مصفوفات
-  const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-  // أول صف هو رؤوس الأعمدة
-  const headers = raw.shift();
-
-  // تحويل الصفوف → كائنات
-  const data = raw.map(row => {
-    const obj = {};
-    headers.forEach((h, i) => {
-      obj[h] = row[i];
-    });
-    return obj;
+  const asePrices = await fetchASEPrices();
+  data.forEach(row => {
+    const sym = row.Symbol.trim().toUpperCase();
+    if (asePrices[sym] !== undefined) row["Last  Price"] = asePrices[sym];
   });
 
-  window.allData = data; // للحفظ + البحث + فرز
+  data.forEach(row => formatRow(row));
+
+  if (totalRow) {
+    formatTotalsRow(totalRow);
+    data.push(totalRow);
+  }
+
+  jsonData = data;
   renderTable(data);
-  loadingEl.style.display = "none";
+  updateTimeStamp();
+  document.getElementById("loadingStatus").style.display = "none";
 }
 
-// ====================== عرض الجدول ======================
+// ========================= FETCH ASE PRICES =========================
+async function fetchASEPrices() {
+  try {
+    const resp = await fetch(ASE_DAILY_URL);
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
+    const prices = {};
+    rows.forEach(r => {
+      const symbol = (r["__EMPTY_6"] || "").toString().trim().toUpperCase();
+      const price = parseFloat(r["__EMPTY_8"]);
+      if (symbol && !isNaN(price)) prices[symbol] = price;
+    });
+    return prices;
+  } catch {
+    return {};
+  }
+}
+
+// ========================= FORMAT ROWS =========================
+function formatRow(row) {
+  const percentCols = ["Change %", "Cash Div% 24", "Average% 5Y", "Stock Yeild% 2024", "Average % 5Y"];
+  const floatCols = ["Last  Price", "EPS 2024 Q3", "EPS 2025 Q3", "EPS Forecast 2025", "PE Ratio", "Fair Price Q3 2025", "PB Ratio", "P/E * P/B.V.", "Graham No", "L.P /G.N"];
+  const intCols = ["ASE Code"];
+
+  for (let key in row) {
+    let val = row[key];
+
+    if (intCols.includes(key)) {
+      row[key] = parseInt(val) || "";
+      continue;
+    }
+
+    if (percentCols.includes(key)) {
+      let num = parseFloat(val);
+      if (!isNaN(num)) {
+        if (Math.abs(num) < 1) num = num * 100;
+        row[key] = `${Math.round(num)}%`;
+      }
+      continue;
+    }
+
+    if (floatCols.includes(key)) {
+      let num = parseFloat(val);
+      if (!isNaN(num)) row[key] = num.toFixed(2);
+      continue;
+    }
+  }
+}
+
+function formatTotalsRow(row) {
+  for (let k in row) {
+    if (!isNaN(parseFloat(row[k]))) row[k] = parseFloat(row[k]).toFixed(2);
+  }
+}
+
+// ========================= RENDER =========================
 function renderTable(data) {
   const table = document.getElementById("dataTable");
   const thead = table.querySelector("thead");
@@ -61,117 +105,100 @@ function renderTable(data) {
   thead.innerHTML = "";
   tbody.innerHTML = "";
 
-  const columns = Object.keys(data[0]);
+  tableHeaders = Object.keys(data[0]);
 
-  // رأس الجدول + الفرز
-  const trHead = document.createElement("tr");
-  columns.forEach((col, idx) => {
-    const th = document.createElement("th");
-    th.textContent = col;
-    th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
-    th.onclick = () => sortTableByColumn(idx);
-    trHead.appendChild(th);
-  });
-  thead.appendChild(trHead);
-
-  // ✅ فصل سطر المجاميع
-  const totalRow = data.find(r =>
-    Object.values(r).join("").replace(/[^a-z0-9]/gi, "").toLowerCase().includes("tot")
-  );
-  const rows = data.filter(r => r !== totalRow);
-
-  rows.forEach((row, i) => {
-    const tr = document.createElement("tr");
-    tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
-
-    columns.forEach(col => {
-      let val = row[col];
-      const td = document.createElement("td");
-      td.className = "px-3 py-1 border-b border-gray-300 text-sm";
-
-      // نسب مئوية → بدون كسور + %
-      if (col.toLowerCase().includes("%")) {
-        const num = parseFloat(val);
-        if (!isNaN(num)) val = Math.round(num * 100) + "%";
-      }
-      else if (!isNaN(parseFloat(val)) && val !== "") {
-        if (col.toLowerCase().includes("code")) val = parseInt(val);
-        else val = parseFloat(val).toFixed(2);
-      }
-
-      // سهم آخر سعر
-      if (col === "Last  Price" && !isNaN(parseFloat(row["Change"]))) {
-        const c = parseFloat(row["Change"]);
-        const arrow = c > 0 ? "↑" : c < 0 ? "↓" : "-";
-        const color = c > 0 ? "text-green-600" : c < 0 ? "text-red-600" : "text-gray-600";
-        td.innerHTML = `${val} <span class="${color} ml-1">${arrow}</span>`;
-      } else {
-        td.textContent = val;
-      }
-
-      // تلوين Change
-      if (col === "Change") {
-        const num = parseFloat(val);
-        if (num > 0) td.classList.add("text-green-600");
-        else if (num < 0) td.classList.add("text-red-600");
-      }
-
-      tr.appendChild(td);
-    });
-
-    tbody.appendChild(tr);
-  });
-
-  // ✅ سطر المجاميع آخر الجدول
- if (totalRow) {
   const tr = document.createElement("tr");
-  tr.className = "bg-gray-700 text-white font-bold";
+  tableHeaders.forEach(h => {
+    const th = document.createElement("th");
+    th.className = "px-3 py-2 bg-gray-800 text-white text-sm cursor-pointer";
+    th.innerText = h;
+    th.addEventListener("click", () => sortTable(h));
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
 
-  columns.forEach(col => {
-    let val = totalRow[col];
+  data.forEach(row => {
+  const tr = document.createElement("tr");
+
+  // ✅ إذا كان صف Tot/Avg → أعطِ تنسيق خاص
+  const isTotal = row["Symbol"] === "TotAvg" || row["Symbol"] === "Tot/Avg";
+  if (isTotal) {
+    tr.className = "bg-gray-800 text-white font-bold";
+  }
+
+  tableHeaders.forEach(key => {
     const td = document.createElement("td");
-    td.className = "px-3 py-1 border-b border-gray-500 text-sm";
 
-    // إذا العمود نسبة مئوية
-    if (col.toLowerCase().includes("%")) {
-      const num = parseFloat(val);
-      if (!isNaN(num)) val = Math.round(num * 100) + "%";
-    }
-    // إذا العمود رقم عادي
-    else if (!isNaN(parseFloat(val)) && val !== "") {
-      val = parseFloat(val).toFixed(2);
-    }
+    td.className = isTotal
+      ? "px-3 py-1 border-b border-gray-700 text-sm"
+      : "px-3 py-1 border-b text-sm";
 
-    td.textContent = val;
+    td.innerText = row[key];
     tr.appendChild(td);
   });
 
   tbody.appendChild(tr);
-}
-
-}
-
-// ====================== البحث ======================
-
-document.getElementById("searchInput").addEventListener("input", function () {
-  const q = this.value.toLowerCase();
-  const filtered = window.allData.filter(r =>
-    Object.values(r).join(" ").toLowerCase().includes(q)
-  );
-  renderTable(filtered);
 });
 
-// ====================== الفرز ======================
 
-function sortTableByColumn(index) {
-  const key = Object.keys(window.allData[0])[index];
-  window.allData.sort((a, b) => (a[key] > b[key] ? 1 : -1));
-  renderTable(window.allData);
+  applyColorAndArrows();
 }
 
-// ====================== زر التحديث ======================
+// ========================= SORT (EXCLUDE TotAvg) =========================
+function sortTable(column) {
+  let totalRow = jsonData.find(r => r.Symbol === "TotAvg" || r.Symbol === "Tot/Avg");
+  let list = jsonData.filter(r => r.Symbol !== "TotAvg" && r.Symbol !== "Tot/Avg");
 
+  list.sort((a, b) => (a[column] > b[column] ? 1 : -1));
+
+  if (totalRow) list.push(totalRow);
+  jsonData = list;
+  renderTable(jsonData);
+}
+
+// ========================= SEARCH =========================
+document.getElementById("searchInput").addEventListener("input", e => {
+  const txt = e.target.value.toLowerCase();
+  renderTable(jsonData.filter(r => JSON.stringify(r).toLowerCase().includes(txt)));
+});
+
+// ========================= COLOR + ARROWS =========================
+function applyColorAndArrows() {
+  let tbody = document.querySelector("#dataTable tbody").rows;
+  let c1 = tableHeaders.indexOf("Change");
+  let c2 = tableHeaders.indexOf("Change %");
+
+  for (let row of tbody) {
+    if (row.cells[0].innerText.toLowerCase().includes("tot")) continue;
+
+    if (c1 >= 0) {
+      let td = row.cells[c1];
+      let v = parseFloat(td.innerText);
+      if (v > 0) td.innerHTML = `+${v.toFixed(2)} ↑`, td.style.color = "green";
+      else if (v < 0) td.innerHTML = `${v.toFixed(2)} ↓`, td.style.color = "red";
+      else td.style.color = "black";
+    }
+
+    if (c2 >= 0) {
+      let td = row.cells[c2];
+      let v = parseFloat(td.innerText);
+      if (Math.abs(v) < 1) v = v * 100;
+      let disp = `${Math.round(v)}%`;
+      if (v > 0) td.innerHTML = `${disp} ↑`, td.style.color = "green";
+      else if (v < 0) td.innerHTML = `${disp} ↓`, td.style.color = "red";
+      else td.innerHTML = disp, td.style.color = "black";
+    }
+  }
+}
+
+// ========================= TIMESTAMP =========================
+function updateTimeStamp() {
+  document.getElementById("dateTime").innerText =
+    new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
+}
+
+// ========================= REFRESH BUTTON =========================
 document.getElementById("refreshBtn").addEventListener("click", loadExcelData);
 
-// Start
+// ========================= START =========================
 loadExcelData();

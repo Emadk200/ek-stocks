@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Watchlist Stocks Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="script.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 text-gray-900 px-6 py-4">
+
+  <!-- ✅ التاريخ + الملاحظة -->
+  <div class="flex justify-between items-start mb-4">
+    <div>
+      <h1 class="text-2xl font-bold mb-1">Watchlist Stocks Dashboard</h1>
+      <div id="dateTime" class="text-gray-600 text-sm"></div>
+      <div id="noteBox" class="text-sm text-gray-700 whitespace-pre-line mt-2"></div>
+    </div>
+
+    <!-- ✅ البحث + زر التحديث -->
+    <div class="flex flex-col items-end gap-2">
+      <input id="searchInput" type="text" placeholder="بحث..." 
+             class="border border-gray-400 rounded px-3 py-1 text-sm w-48">
+      <button id="refreshBtn"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow text-sm">
+        تحديث البيانات
+      </button>
+    </div>
+  </div>
+
+  <!-- ✅ مؤشر تحميل -->
+  <div id="loadingStatus"
+       style="display:none; margin-bottom: 10px; padding: 8px; background: #eef; border-left: 4px solid #007bff;">
+    Loading data...
+  </div>
+
+  <!-- ✅ الجدول -->
+  <div class="overflow-x-auto border rounded shadow">
+    <table id="dataTable" class="min-w-full text-left text-sm">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- ✅ ملاحظة ثابتة قابلة للتغيير من السكربت -->
+  <script>
+    document.getElementById("dateTime").innerText =
+      new Date().toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" });
+
+    document.getElementById("noteBox").innerText =
+`* ملاحظة:
+القيم مستندة إلى آخر إغلاق رسمي.
+الأسهم ذات العوائد السلبية قد تحمل مخاطرة أعلى.
+تأكد من مراجعة التقارير الفصلية.`;
+  </script>
+
+</body>
+</html>

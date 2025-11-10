@@ -1,77 +1,58 @@
-const fileUrl = "https://emadk200.github.io/ek-stocks/watchliststoks.xlsx?v=" + Date.now();
-const proxyURL = "https://bitter-frost-8e4d.emk200.workers.dev/";
+// ====================== إعدادات ======================
 
-// التاريخ
-document.getElementById("current-date").textContent =
-  new Date().toLocaleString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+// اسم ملف الإكسل (يجب أن يكون في نفس مجلد index.html)
+const EXCEL_FILE_URL = "watchliststocks.xlsx";
 
-// الملاحظة الثابتة
-document.getElementById("notes").innerHTML = `
-- Dashboard updates Last Price live from ASE.
-- Change & Change% are interpreted directly from your Excel file.
-`;
+// عنصر الحالة (Loading…)
+const loadingEl = document.getElementById("loadingStatus");
 
-// جلب الأسعار من البورصة
-async function fetchLastClosingPrices() {
-  try {
-    const res = await fetch(proxyURL);
-    const html = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+// ====================== تحميل ملف الإكسل ======================
 
-    const rows = doc.querySelectorAll("table tbody tr");
-    const prices = {};
-
-    rows.forEach(row => {
-      const cells = row.querySelectorAll("td");
-      if (cells.length > 7) {
-        const symbol = cells[6]?.innerText.trim();
-        const lastClosing = parseFloat(cells[7]?.innerText.trim());
-        if (symbol && !isNaN(lastClosing)) {
-          prices[symbol] = lastClosing;
-        }
-      }
-    });
-
-    window._lastPricesTest = prices;
-    return prices;
-
-  } catch (err) {
-    console.error("Error fetching prices:", err);
-    return {};
-  }
-}
-
-// تحميل ملف Excel ودمج الأسعار
 async function loadExcelData() {
-  document.getElementById("loading-indicator").classList.remove("hidden");
+  loadingEl.style.display = "block";
 
-  const res = await fetch(fileUrl);
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-  const marketPrices = await fetchLastClosingPrices();
-
-  data.forEach(row => {
-    if (row.Symbol && marketPrices[row.Symbol]) {
-      row["Last Price"] = marketPrices[row.Symbol];
-    }
-  });
-
-  renderTable(data);
-  document.getElementById("loading-indicator").classList.add("hidden");
+let response;
+try {
+  response = await fetch(EXCEL_FILE_URL);
+  if (!response.ok) throw new Error("HTTP " + response.status);
+} catch(e) {
+  console.error("❌ Error loading Excel file:", e);
+  return;
 }
 
-// عرض الجدول
+  const arrayBuffer = await response.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  // ✅ إجبار المكتبة على عدم إسقاط آخر الصفوف
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  range.e.r = range.e.r + 3;
+  sheet['!ref'] = XLSX.utils.encode_range(range);
+
+  // نقرأ القيم بصيغة مصفوفات
+  const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+  // أول صف هو رؤوس الأعمدة
+  const headers = raw.shift();
+
+  // تحويل الصفوف → كائنات
+  const data = raw.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => {
+      obj[h] = row[i];
+    });
+    return obj;
+  });
+
+  window.allData = data; // للحفظ + البحث + فرز
+  renderTable(data);
+  loadingEl.style.display = "none";
+}
+
+// ====================== عرض الجدول ======================
+
 function renderTable(data) {
   const table = document.getElementById("dataTable");
   const thead = table.querySelector("thead");
@@ -82,47 +63,57 @@ function renderTable(data) {
 
   const columns = Object.keys(data[0]);
 
-  // رأس الجدول
-  const headerRow = document.createElement("tr");
-  columns.forEach((col, index) => {
+  // رأس الجدول + الفرز
+  const trHead = document.createElement("tr");
+  columns.forEach((col, idx) => {
     const th = document.createElement("th");
-    th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
     th.textContent = col;
-    th.addEventListener("click", () => sortTableByColumn(index));
-    headerRow.appendChild(th);
+    th.className = "px-3 py-2 bg-gray-800 text-white font-semibold cursor-pointer";
+    th.onclick = () => sortTableByColumn(idx);
+    trHead.appendChild(th);
   });
-  thead.appendChild(headerRow);
+  thead.appendChild(trHead);
 
-  // الصفوف
-  data.forEach((row, i) => {
-    const isTotalRow = row.Symbol && row.Symbol.toLowerCase().includes("tot");
+  // ✅ فصل سطر المجاميع
+  const totalRow = data.find(r =>
+    Object.values(r).join("").replace(/[^a-z0-9]/gi, "").toLowerCase().includes("tot")
+  );
+  const rows = data.filter(r => r !== totalRow);
+
+  rows.forEach((row, i) => {
     const tr = document.createElement("tr");
-    tr.className = isTotalRow ? "bg-gray-700 text-white font-bold" : (i % 2 === 0 ? "bg-gray-100" : "bg-gray-200");
-
-    const changeVal = parseFloat(row["Change"]);
-    const changePctVal = parseFloat(row["Change %"]) * 100;
+    tr.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
 
     columns.forEach(col => {
-      let value = row[col];
+      let val = row[col];
       const td = document.createElement("td");
       td.className = "px-3 py-1 border-b border-gray-300 text-sm";
 
-      if (col === "Change" && !isNaN(changeVal)) {
-        value = changeVal.toFixed(3);
-        td.classList.add(changeVal > 0 ? "text-green-600" : changeVal < 0 ? "text-red-600" : "text-gray-800");
+      // نسب مئوية → بدون كسور + %
+      if (col.toLowerCase().includes("%")) {
+        const num = parseFloat(val);
+        if (!isNaN(num)) val = Math.round(num * 100) + "%";
+      }
+      else if (!isNaN(parseFloat(val)) && val !== "") {
+        if (col.toLowerCase().includes("code")) val = parseInt(val);
+        else val = parseFloat(val).toFixed(2);
       }
 
-      if (col === "Change %" && !isNaN(changePctVal)) {
-        value = Math.round(changePctVal) + "%";
-        td.classList.add(changePctVal > 0 ? "text-green-600" : changePctVal < 0 ? "text-red-600" : "text-gray-800");
-      }
-
-      if (col === "Last Price" && !isNaN(changeVal)) {
-        const arrow = changeVal > 0 ? "↑" : changeVal < 0 ? "↓" : "-";
-        const arrowColor = changeVal > 0 ? "text-green-600" : changeVal < 0 ? "text-red-600" : "text-gray-600";
-        td.innerHTML = `${value} <span class="${arrowColor}">${arrow}</span>`;
+      // سهم آخر سعر
+      if (col === "Last  Price" && !isNaN(parseFloat(row["Change"]))) {
+        const c = parseFloat(row["Change"]);
+        const arrow = c > 0 ? "↑" : c < 0 ? "↓" : "-";
+        const color = c > 0 ? "text-green-600" : c < 0 ? "text-red-600" : "text-gray-600";
+        td.innerHTML = `${val} <span class="${color} ml-1">${arrow}</span>`;
       } else {
-        td.textContent = value;
+        td.textContent = val;
+      }
+
+      // تلوين Change
+      if (col === "Change") {
+        const num = parseFloat(val);
+        if (num > 0) td.classList.add("text-green-600");
+        else if (num < 0) td.classList.add("text-red-600");
       }
 
       tr.appendChild(td);
@@ -130,39 +121,57 @@ function renderTable(data) {
 
     tbody.appendChild(tr);
   });
+
+  // ✅ سطر المجاميع آخر الجدول
+ if (totalRow) {
+  const tr = document.createElement("tr");
+  tr.className = "bg-gray-700 text-white font-bold";
+
+  columns.forEach(col => {
+    let val = totalRow[col];
+    const td = document.createElement("td");
+    td.className = "px-3 py-1 border-b border-gray-500 text-sm";
+
+    // إذا العمود نسبة مئوية
+    if (col.toLowerCase().includes("%")) {
+      const num = parseFloat(val);
+      if (!isNaN(num)) val = Math.round(num * 100) + "%";
+    }
+    // إذا العمود رقم عادي
+    else if (!isNaN(parseFloat(val)) && val !== "") {
+      val = parseFloat(val).toFixed(2);
+    }
+
+    td.textContent = val;
+    tr.appendChild(td);
+  });
+
+  tbody.appendChild(tr);
 }
 
-// البحث
-document.getElementById("searchInput").addEventListener("keyup", function () {
-  const filter = this.value.toLowerCase();
-  document.querySelectorAll("#dataTable tbody tr").forEach((row, i, rows) => {
-    if (i === rows.length - 1) return;
-    row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
-  });
+}
+
+// ====================== البحث ======================
+
+document.getElementById("searchInput").addEventListener("input", function () {
+  const q = this.value.toLowerCase();
+  const filtered = window.allData.filter(r =>
+    Object.values(r).join(" ").toLowerCase().includes(q)
+  );
+  renderTable(filtered);
 });
 
-// الفرز
-function sortTableByColumn(colIndex) {
-  const tbody = document.querySelector("#dataTable tbody");
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-  const totalRow = rows.pop();
-  const asc = tbody.dataset.sortOrder !== "asc";
-  tbody.dataset.sortOrder = asc ? "asc" : "desc";
+// ====================== الفرز ======================
 
-  rows.sort((a, b) => {
-    const aText = a.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
-    const bText = b.children[colIndex].innerText.replace(/[↑↓%-]/g, "").trim();
-    const aNum = parseFloat(aText), bNum = parseFloat(bText);
-    return (!isNaN(aNum) && !isNaN(bNum)) ? (asc ? aNum - bNum : bNum - aNum) : (asc ? aText.localeCompare(bText) : bText.localeCompare(aText));
-  });
-
-  rows.forEach((row, i) => {
-    row.className = i % 2 === 0 ? "bg-gray-100" : "bg-gray-200";
-    tbody.appendChild(row);
-  });
-
-  tbody.appendChild(totalRow);
+function sortTableByColumn(index) {
+  const key = Object.keys(window.allData[0])[index];
+  window.allData.sort((a, b) => (a[key] > b[key] ? 1 : -1));
+  renderTable(window.allData);
 }
 
-document.getElementById("refresh-btn").addEventListener("click", loadExcelData);
+// ====================== زر التحديث ======================
+
+document.getElementById("refreshBtn").addEventListener("click", loadExcelData);
+
+// Start
 loadExcelData();

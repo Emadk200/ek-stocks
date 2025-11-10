@@ -2,63 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Watchlist Stocks Dashboard</title>
-
-  <!-- Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-
-  <!-- XLSX Library (working version via jsDelivr) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <style>
-    /* تحسين وضوح zebra striping */
-    tbody tr:nth-child(even) { background-color: #f1f5f9; } /* bg-gray-200 */
-    tbody tr:nth-child(odd) { background-color: #f8fafc; } /* bg-gray-100 */
-  </style>
-
+  <script defer src="script.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 
-<body class="bg-gray-100 text-gray-900 p-6">
+<body class="bg-gray-50 text-gray-900 px-6 py-4">
 
-  <!-- Header -->
+  <!-- ✅ التاريخ + الملاحظة -->
   <div class="flex justify-between items-start mb-4">
-      
-      <!-- Title + Date -->
-      <div>
-        <h1 class="text-2xl font-bold mb-1">📊 Watchlist Stocks Dashboard</h1>
-        <div id="current-date" class="text-sm text-gray-600"></div>
-      </div>
+    <div>
+      <h1 class="text-2xl font-bold mb-1">Watchlist Stocks Dashboard</h1>
+      <div id="dateTime" class="text-gray-600 text-sm"></div>
+      <div id="noteBox" class="text-sm text-gray-700 whitespace-pre-line mt-2"></div>
+    </div>
 
-      <!-- Controls -->
-      <div class="text-right">
-        <button id="refresh-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded mb-2">
-          🔄 تحديث البيانات
-        </button>
-
-        <input id="searchInput" type="text" placeholder="🔍 بحث..." 
-               class="px-3 py-2 border border-gray-400 rounded w-48 text-sm">
-      </div>
+    <!-- ✅ البحث + زر التحديث -->
+    <div class="flex flex-col items-end gap-2">
+      <input id="searchInput" type="text" placeholder="بحث..." 
+             class="border border-gray-400 rounded px-3 py-1 text-sm w-48">
+      <button id="refreshBtn"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow text-sm">
+        تحديث البيانات
+      </button>
+    </div>
   </div>
 
-  <!-- Notes -->
-  <div id="notes" class="whitespace-pre-line bg-white p-3 border border-gray-300 rounded mb-4 text-sm"></div>
-
-  <!-- Loading Indicator -->
-  <div id="loading-indicator" class="hidden text-blue-600 font-semibold mb-2">
-    ⏳ جاري تحميل البيانات...
+  <!-- ✅ مؤشر تحميل -->
+  <div id="loadingStatus"
+       style="display:none; margin-bottom: 10px; padding: 8px; background: #eef; border-left: 4px solid #007bff;">
+    Loading data...
   </div>
 
-  <!-- Table -->
-  <div class="overflow-x-auto">
-    <table id="dataTable" class="w-full text-sm border-collapse">
+  <!-- ✅ الجدول -->
+  <div class="overflow-x-auto border rounded shadow">
+    <table id="dataTable" class="min-w-full text-left text-sm">
       <thead></thead>
       <tbody></tbody>
     </table>
   </div>
 
-  <!-- Main Script -->
-  <script src="script.js"></script>
+  <!-- ✅ ملاحظة ثابتة قابلة للتغيير من السكربت -->
+  <script>
+    document.getElementById("dateTime").innerText =
+      new Date().toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" });
+
+    document.getElementById("noteBox").innerText =
+`* ملاحظة:
+القيم مستندة إلى آخر إغلاق رسمي.
+الأسهم ذات العوائد السلبية قد تحمل مخاطرة أعلى.
+تأكد من مراجعة التقارير الفصلية.`;
+  </script>
 
 </body>
 </html>
